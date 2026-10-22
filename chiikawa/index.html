@@ -109,6 +109,10 @@ dialog .two>label{min-width:0}
 dialog .two input,dialog .two select{width:100%;min-width:0}
 .dpic{position:relative;background:var(--img-bg);border-radius:12px;height:min(260px,40vh);display:grid;place-items:center;overflow:hidden}
 .dpic img{position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);object-fit:contain}
+.dnav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.9);color:#5a4450;font-size:30px;line-height:1;padding:0 0 4px;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
+#d-prev{left:8px}
+#d-next{right:8px}
+.dnav:disabled{opacity:0;pointer-events:none}
 .dname{font-size:16px;font-weight:700;margin:0}
 .links{display:flex;gap:12px;font-size:13px}
 .links a{color:var(--accent)}
@@ -139,7 +143,9 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
 .rost.need{color:var(--want)}
 .rost.have{color:var(--own)}
 .ro #syncBtn,.ro .menuwrap,.ro .card .acts,.ro #itemDlg .two,.ro #d-note-l,.ro #d-save,.ro #d-del{display:none!important}
-.badge.want{left:auto;right:6px;background:var(--paper);color:var(--want);border:1px solid var(--want)}
+/* friend view: wanted items stand out with a pink frame, a big heart and a pink label */
+.ro .card.want{border:2px solid var(--want);background:var(--accent-soft);box-shadow:0 2px 10px rgba(226,71,122,.25)}
+.badge.want{left:auto;right:6px;top:6px;background:var(--want);color:#fff;font-size:13px;padding:3px 9px;border-radius:999px;box-shadow:0 1px 4px rgba(0,0,0,.2);z-index:1}
 #shareLink{width:100%;font-size:13px}
 #shareQr svg{width:min(260px,70vw);height:auto;display:block;margin:0 auto;background:#fff;border-radius:8px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:999px;font-size:13px;z-index:50}
@@ -190,6 +196,8 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
       <div class="dpic" id="d-pic"></div>
       <button type="button" id="d-heart" title="想要" aria-pressed="false"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7.5-4.6-9.5-9.3C1.1 8.3 3.3 4.5 7 4.5c2.1 0 3.6 1.1 5 2.9 1.4-1.8 2.9-2.9 5-2.9 3.7 0 5.9 3.8 4.5 7.2C19.5 16.4 12 21 12 21z"/></svg></button>
       <button type="button" class="stamp off" id="d-stamp" title="點一下標記已擁有">✓ 已有</button>
+      <button type="button" class="dnav" id="d-prev" title="上一張" aria-label="上一張">‹</button>
+      <button type="button" class="dnav" id="d-next" title="下一張" aria-label="下一張">›</button>
     </div>
     <p class="dname" id="d-name"></p>
     <label id="d-name-l">名稱<input id="d-name-in" placeholder="商品名稱"></label>
@@ -296,11 +304,13 @@ const encIds=ids=>{let prev=0;return ids.map(Number).sort((a,b)=>a-b).map(n=>{co
 const decIds=s=>{let prev=0;return s?s.split(".").map(x=>String(prev+=parseInt(x,36))):[]};
 function shareLink(){
   const ids=st=>user.items.filter(u=>u.st===st&&/^\d+$/.test(u.id)).map(u=>u.id);
-  return SETUP_URL+"#share=1~"+today().replace(/-/g,"")+"~"+encIds(ids("own"))+"~"+encIds(ids("want"));
+  const d=new Date(),hm=String(d.getHours()).padStart(2,"0")+String(d.getMinutes()).padStart(2,"0");
+  return SETUP_URL+"#share=1~"+today().replace(/-/g,"")+hm+"~"+encIds(ids("own"))+"~"+encIds(ids("want"));
 }
 let shared=null;
-{const m=/#share=1~(\d{8})~([0-9a-z.]*)~([0-9a-z.]*)/.exec(location.hash);
-  if(m)shared={date:m[1].replace(/(\d{4})(\d\d)(\d\d)/,"$1-$2-$3"),own:decIds(m[2]),want:decIds(m[3])}}
+// The snapshot time is YYYYMMDD plus HHMM; links made before the time was added carry only the date.
+{const m=/#share=1~(\d{8})(\d{4})?~([0-9a-z.]*)~([0-9a-z.]*)/.exec(location.hash);
+  if(m)shared={date:m[1].replace(/(\d{4})(\d\d)(\d\d)/,"$1-$2-$3")+(m[2]?" "+m[2].replace(/(\d\d)(\d\d)/,"$1:$2"):""),own:decIds(m[3]),want:decIds(m[4])}}
 const RO=!!shared;
 if(RO){
   user={items:[...shared.own.map(id=>({id,st:"own"})),...shared.want.map(id=>({id,st:"want"}))],custom:[]};
@@ -308,7 +318,7 @@ if(RO){
   document.documentElement.classList.add("ro");
   document.title="朋友的吉伊卡哇收集清單";
   $("#roBanner").hidden=false;
-  $("#roBanner").textContent=`這是朋友的吉伊卡哇地區限定收集清單（${shared.date} 的狀態，唯讀）。現在列出還沒收集到的鐵牌，標 ♡ 的是特別想要的。`;
+  $("#roBanner").textContent=`這是朋友的吉伊卡哇地區限定收集清單（${shared.date} 的狀態，唯讀）。現在列出還沒收集到的鐵牌，粉紅框、標 ♥ 想要 的是特別想要的。`;
 }
 const uid=()=>"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
@@ -363,7 +373,8 @@ function render(){
   const shown=items.filter(i=>(view.st==="all"||(view.st==="none"?i.st!=="own":i.st===view.st))
     &&(view.cat==="all"||i.cat===view.cat)&&(view.reg==="all"||regionOf(i.loc)===view.reg)&&(!view.loc||i.loc===view.loc)&&matches(i,q));
   const groups=new Map();
-  for(const it of shown){const k=it.loc||"";if(!groups.has(k))groups.set(k,[]);groups.get(k).push(it)}
+  // friends see the wanted items first in each place
+  for(const it of RO?[...shown].sort((a,b)=>(b.st==="want")-(a.st==="want")):shown){const k=it.loc||"";if(!groups.has(k))groups.set(k,[]);groups.get(k).push(it)}
   const keys=[...groups.keys()].sort((a,b)=>{
     const ra=REG_ORDER.indexOf(regionOf(a)),rb=REG_ORDER.indexOf(regionOf(b));
     return ra-rb||(LOC_ORD[a]??9999)-(LOC_ORD[b]??9999)||a.localeCompare(b,"zh-Hant");
@@ -381,11 +392,11 @@ function chip(v,label,arr,cur,kind){
 }
 function pic(it){return it.img?`<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'🎁'}))">`:`<span class="ph">🎁</span>`}
 function card(it){
-  return `<div class="card${it.st==="own"?" own":""}" data-id="${esc(it.id)}">
-    ${isNew(it)?`<span class="badge">新</span>`:""}${RO?(it.st==="want"?`<span class="badge want">♡ 想要</span>`:""):it.note||it.price?`<span class="badge note">✎</span>`:""}
+  return `<div class="card${it.st==="own"?" own":it.st==="want"?" want":""}" data-id="${esc(it.id)}">
+    ${isNew(it)?`<span class="badge">新</span>`:""}${RO?(it.st==="want"?`<span class="badge want">♥ 想要</span>`:""):it.note||it.price?`<span class="badge note">✎</span>`:""}
     <button class="pic" data-open title="詳細">${pic(it)}${RO&&it.st==="own"?`<span class="stamp">✓ 已有</span>`:""}</button>
     <div class="body"><div class="nm">${esc(it.name)}</div>
-    <div class="meta">${RO?(it.st==="own"?`<span class="rost have">✓ 已經有了</span>`:`<span class="rost need">還沒有</span>`)+" · ":""}${esc(CATS[it.cat]||"")}${it.date&&!RO?" · "+esc(it.date):""}</div>
+    <div class="meta">${RO?(it.st==="own"?`<span class="rost have">✓ 已經有了</span>`:(it.st==="want"?`<span class="rost need">♥ 很想要</span>`:`<span class="rost need">還沒有</span>`))+" · ":""}${esc(CATS[it.cat]||"")}${it.date&&!RO?" · "+esc(it.date):""}</div>
     <div class="acts"><button class="b-want" aria-pressed="${it.st==="want"}" title="想要" aria-label="想要">${it.st==="want"?"♥":"♡"}</button><button class="b-own" aria-pressed="${it.st==="own"}" title="已擁有" aria-label="已擁有">✓</button></div></div>
   </div>`;
 }
@@ -504,10 +515,33 @@ function openItem(it){
   $("#d-loc").value=it?.loc||"";$("#d-cat").value=it?.cat||"keyholder";
   $("#d-date").value=it?.date||"";$("#d-price").value=it?.price||"";$("#d-note").value=it?.note||"";
   $("#d-del").hidden=!it||!it.custom;
-  $("#itemDlg").showModal();
+  // ‹ › step through the cards currently listed, in the order shown
+  navIds=[...document.querySelectorAll("#list:not([hidden]) .card")].map(c=>c.dataset.id);
+  const pos=it?navIds.indexOf(it.id):-1;
+  $("#d-prev").disabled=pos<=0;$("#d-next").disabled=pos<0||pos>=navIds.length-1;
+  opened=dVals();
+  if(!$("#itemDlg").open)$("#itemDlg").showModal();
+}
+let navIds=[],opened="";
+const dVals=()=>({st:dSt,loc:$("#d-loc").value.trim(),cat:$("#d-cat").value,date:$("#d-date").value,price:$("#d-price").value.trim(),note:$("#d-note").value.trim()});
+function step(d){
+  if(!editing)return;
+  const id=navIds[navIds.indexOf(editing.id)+d];if(!id)return;
+  // keep what was changed on this item before moving on (catalog items only; custom ones need 儲存)
+  if(!RO&&!editing.custom&&JSON.stringify(dVals())!==JSON.stringify(opened)){setUser(editing.id,dVals());persist();render()}
+  const it=allItems().find(i=>i.id===id);if(it)openItem(it);
+}
+$("#d-prev").onclick=()=>step(-1);$("#d-next").onclick=()=>step(1);
+$("#itemDlg").addEventListener("keydown",e=>{
+  if(e.target.matches("input,textarea,select"))return;
+  if(e.key==="ArrowLeft")step(-1);else if(e.key==="ArrowRight")step(1);
+});
+{let x0=null;const pic=$("#d-pic");
+  pic.addEventListener("touchstart",e=>{x0=e.touches[0].clientX},{passive:true});
+  pic.addEventListener("touchend",e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>50)step(dx<0?1:-1)});
 }
 $("#d-save").onclick=()=>{
-  const vals={st:dSt,loc:$("#d-loc").value.trim(),cat:$("#d-cat").value,date:$("#d-date").value,price:$("#d-price").value.trim(),note:$("#d-note").value.trim()};
+  const vals=dVals();
   let id=editing?.id;
   if(!editing||editing.custom){
     const name=$("#d-name-in").value.trim();if(!name){$("#d-name-in").focus();toast("請填寫名稱");return}
