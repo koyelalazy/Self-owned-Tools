@@ -137,6 +137,7 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
     <div class="menuwrap">
       <button class="iconbtn" id="menuBtn" title="更多" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
       <div id="menu" hidden>
+        <button id="m-crawl">立即抓新品…</button>
         <button id="m-add">新增商品…</button>
         <button id="m-share">分享給朋友…</button>
         <button id="m-sync">雲端同步…</button>
@@ -492,6 +493,11 @@ $("#d-del").onclick=()=>{
   persist();$("#itemDlg").close();render();toast("已刪除");
 };
 $("#m-add").onclick=()=>openItem(null);
+// The catalog is refreshed by a GitHub Action; this opens its page, where 「Run workflow」 starts it now.
+$("#m-crawl").onclick=()=>{
+  toast("在 GitHub 按「Run workflow」，跑完約 1–2 分鐘後重新整理這頁");
+  window.open("https://github.com/koyelalazy/Self-owned-Tools/actions/workflows/chiikawa-catalog.yml","_blank","noopener");
+};
 $("#m-share").onclick=async()=>{
   const link=shareLink();
   $("#shareLink").value=link;$("#shareSys").hidden=!navigator.share;$("#shareQr").innerHTML="";$("#shareDlg").showModal();

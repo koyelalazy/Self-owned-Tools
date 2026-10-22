@@ -2,7 +2,7 @@ name: Chiikawa catalog refresh
 
 on:
   schedule:
-    - cron: "0 1 * * 1"   # Mondays 09:00 Taiwan time
+    - cron: "0 1 * * *"   # daily 09:00 Taiwan time
   workflow_dispatch:
 
 permissions:
