@@ -40,11 +40,21 @@ LOC_HINTS = {
     "福岡": "福岡", "博多": "福岡", "北九州": "北九州", "長崎": "長崎", "佐賀": "佐賀", "熊本": "熊本",
     "大分": "大分", "別府": "大分", "宮崎": "宮崎", "鹿児島": "鹿児島", "奄美": "奄美",
     "沖縄": "沖繩", "首里": "沖繩",
+    "八ツ橋": "京都", "舞妓": "京都", "お笑い": "大阪", "牡蠣": "広島", "レモン": "広島", "しゃちほこ": "名古屋",
+    "さくらんぼ": "山形", "シマエナガ": "北海道", "桜島": "鹿児島", "しろくま": "鹿児島", "温泉": "溫泉地",
+    "エッグタルト": "澳門", "カンフー": "香港",
     "香港": "香港", "マカオ": "澳門", "台湾": "台灣", "ソウル": "韓國", "韓国": "韓國", "オーストラリア": "澳洲",
 }
 
 
-def guess_loc(name):
+def prefix(name):
+    return re.split(r"[\u3000 ]", name, 1)[0]
+
+
+def guess_loc(name, known=None):
+    """known maps a name's first word (e.g. エッグタルト) to the location already set for it."""
+    if known and prefix(name) in known:
+        return known[prefix(name)]
     for word, loc in LOC_HINTS.items():
         if word in name:
             return loc
@@ -137,16 +147,24 @@ def write_catalog(cat):
 def main():
     cat = json.loads(CATALOG.read_text(encoding="utf-8"))
     # Drop crawled names that failed to decode so this run adds them again.
-    cat["items"] = [i for i in cat["items"] if not (i.get("added") and "\ufffd" in i["name"])]
-    known = {i["id"] for i in cat["items"]}
+    # Also drop site links (Instagram, X) that share the photo markup: real items have Japanese names.
+    cat["items"] = [i for i in cat["items"] if not (i.get("added") and ("\ufffd" in i["name"] or i["name"].isascii()))]
+    known = {}
+    for i in cat["items"]:  # newest first, so the most recent location for a word wins
+        if i["loc"]:
+            known.setdefault(prefix(i["name"]), i["loc"])
+    for i in cat["items"]:
+        if i.get("added") and not i["loc"]:
+            i["loc"] = guess_loc(i["name"], known)
+    seen_ids = {i["id"] for i in cat["items"]}
     added = []
     for raw in crawl():
         img = raw["href"] if raw["href"].startswith("http") else DOMAIN + raw["href"]
         m = re.search(r"tphoto_(\d+)_", img)
-        if not m or m.group(1) in known:
+        if not m or m.group(1) in seen_ids or raw["name"].isascii():
             continue
-        known.add(m.group(1))
-        added.append({"id": m.group(1), "name": raw["name"], "loc": guess_loc(raw["name"]),
+        seen_ids.add(m.group(1))
+        added.append({"id": m.group(1), "name": raw["name"], "loc": guess_loc(raw["name"], known),
                       "cat": guess_cat(raw["name"]), "img": img, "added": date.today().isoformat()})
     if added:
         cat["items"] = sorted(added + cat["items"], key=lambda i: -int(i["id"]))
