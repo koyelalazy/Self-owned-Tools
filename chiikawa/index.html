@@ -370,8 +370,8 @@ async function renderMap(items){
   if(view.mode!=="map")return;
   if(!map){
     map=L.map("map",{zoomSnap:.5});
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:18,subdomains:"abcd",
-      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
     mapLayer=L.layerGroup().addTo(map);
     let lastBand=-1;
     map.on("zoomend",()=>{const z=map.getZoom(),band=z<LOC_ZOOM?0:z<LABEL_ZOOM?1:2;if(band!==lastBand){lastBand=band;drawPins()}});
