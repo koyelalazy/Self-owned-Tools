@@ -124,6 +124,7 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
 .ro #syncBtn,.ro .menuwrap,.ro .card .acts,.ro #d-st,.ro #itemDlg .two,.ro #d-note-l,.ro #d-save,.ro #d-del{display:none!important}
 .badge.want{left:auto;right:6px;background:var(--paper);color:var(--want);border:1px solid var(--want)}
 #shareLink{width:100%;font-size:13px}
+#shareQr svg{width:min(260px,70vw);height:auto;display:block;margin:0 auto;background:#fff;border-radius:8px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:999px;font-size:13px;z-index:50}
 </style>
 </head>
@@ -194,7 +195,8 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
 <dialog id="shareDlg">
   <form novalidate>
     <h3>分享給朋友</h3>
-    <p class="hint">朋友打開這個連結會看到唯讀的清單，預設列出你還沒有的鐵牌，♡ 是你特別想要的。連結裡只有「有／想要」的紀錄，沒有金鑰。這是現在的快照，之後買到新的再傳一次新連結就好。</p>
+    <p class="hint">讓朋友用手機相機掃 QR code，或把連結傳給他們。打開後是唯讀的清單，預設列出你還沒有的鐵牌，♡ 是你特別想要的。連結裡只有「有／想要」的紀錄，沒有金鑰。這是現在的快照，之後買到新的再傳一次新連結就好。</p>
+    <div id="shareQr"></div>
     <input id="shareLink" readonly>
     <div class="acts2">
       <button type="button" class="btn" data-close>關閉</button>
@@ -490,8 +492,11 @@ $("#d-del").onclick=()=>{
   persist();$("#itemDlg").close();render();toast("已刪除");
 };
 $("#m-add").onclick=()=>openItem(null);
-$("#m-share").onclick=()=>{
-  $("#shareLink").value=shareLink();$("#shareSys").hidden=!navigator.share;$("#shareDlg").showModal();$("#shareLink").select();
+$("#m-share").onclick=async()=>{
+  const link=shareLink();
+  $("#shareLink").value=link;$("#shareSys").hidden=!navigator.share;$("#shareQr").innerHTML="";$("#shareDlg").showModal();
+  if(!window.qrcode)await loadScript("qrcode.min.js").catch(()=>{});
+  if(window.qrcode){const q=qrcode(0,"L");q.addData(link);q.make();$("#shareQr").innerHTML=q.createSvgTag({cellSize:4,margin:4,scalable:true})}
 };
 $("#shareCopy").onclick=async()=>{
   try{await navigator.clipboard.writeText($("#shareLink").value);toast("已複製連結")}catch(e){$("#shareLink").select();document.execCommand("copy");toast("已複製連結")}
