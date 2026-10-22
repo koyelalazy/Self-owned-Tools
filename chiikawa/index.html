@@ -107,8 +107,8 @@ dialog input,dialog select,dialog textarea{border:1px solid var(--line);border-r
 dialog .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 dialog .two>label{min-width:0}
 dialog .two input,dialog .two select{width:100%;min-width:0}
-.dpic{background:var(--img-bg);border-radius:12px;height:200px;display:grid;place-items:center;overflow:hidden}
-.dpic img{max-width:100%;max-height:100%;object-fit:contain}
+.dpic{position:relative;background:var(--img-bg);border-radius:12px;height:min(260px,40vh);display:grid;place-items:center;overflow:hidden}
+.dpic img{position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);object-fit:contain}
 .dname{font-size:16px;font-weight:700;margin:0}
 .links{display:flex;gap:12px;font-size:13px}
 .links a{color:var(--accent)}
