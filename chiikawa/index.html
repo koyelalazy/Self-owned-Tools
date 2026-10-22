@@ -121,6 +121,14 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
 #s-cam{width:100%;border-radius:12px}
 .ro-banner{margin:12px 0 0;padding:10px 14px;border-radius:12px;background:var(--accent-soft);font-size:14px}
 .ro .card:not(.own) .pic img{opacity:1;filter:none}
+.ro .card.own{border-color:var(--line);box-shadow:none;background:var(--bg)}
+.ro .card.own .pic img{opacity:.3;filter:grayscale(1)}
+.ro .card.own .nm{color:var(--muted)}
+.card .pic{position:relative}
+.stamp{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-10deg);background:var(--own);color:#fff;font-weight:900;font-size:18px;padding:4px 14px;border-radius:10px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap}
+.rost{font-weight:700}
+.rost.need{color:var(--want)}
+.rost.have{color:var(--own)}
 .ro #syncBtn,.ro .menuwrap,.ro .card .acts,.ro #d-st,.ro #itemDlg .two,.ro #d-note-l,.ro #d-save,.ro #d-del{display:none!important}
 .badge.want{left:auto;right:6px;background:var(--paper);color:var(--want);border:1px solid var(--want)}
 #shareLink{width:100%;font-size:13px}
@@ -363,9 +371,9 @@ function pic(it){return it.img?`<img src="${esc(it.img)}" alt="" loading="lazy" 
 function card(it){
   return `<div class="card${it.st==="own"?" own":""}" data-id="${esc(it.id)}">
     ${isNew(it)?`<span class="badge">新</span>`:""}${RO?(it.st==="want"?`<span class="badge want">♡ 想要</span>`:""):it.note||it.price?`<span class="badge note">✎</span>`:""}
-    <button class="pic" data-open title="詳細">${pic(it)}</button>
+    <button class="pic" data-open title="詳細">${pic(it)}${RO&&it.st==="own"?`<span class="stamp">✓ 已有</span>`:""}</button>
     <div class="body"><div class="nm">${esc(it.name)}</div>
-    <div class="meta">${esc(CATS[it.cat]||"")}${it.date?" · "+esc(it.date):""}</div>
+    <div class="meta">${RO?(it.st==="own"?`<span class="rost have">✓ 已經有了</span>`:`<span class="rost need">還沒有</span>`)+" · ":""}${esc(CATS[it.cat]||"")}${it.date&&!RO?" · "+esc(it.date):""}</div>
     <div class="acts"><button class="b-want" aria-pressed="${it.st==="want"}" title="想要">♡ 想要</button><button class="b-own" aria-pressed="${it.st==="own"}" title="已擁有">✓ 有了</button></div></div>
   </div>`;
 }
