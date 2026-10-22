@@ -1,0 +1,23 @@
+name: Chiikawa catalog refresh
+
+on:
+  schedule:
+    - cron: "0 1 * * 1"   # Mondays 09:00 Taiwan time
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 chiikawa/crawl.py
+      - name: Commit new items
+        run: |
+          if git diff --quiet chiikawa/catalog.json; then echo "no new items"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Chiikawa: add new items to catalog"
+          git push

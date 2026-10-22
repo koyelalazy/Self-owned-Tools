@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#fff6f8">
+<title>吉伊卡哇限定收集</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: sticky filter bar (search, status, kind, region chips) over a grid of item cards grouped by location. */
+:root{
+  --bg:#fff6f8; --paper:#ffffff; --ink:#3a2a33; --muted:#8a7480; --line:#f0dce3;
+  --accent:#e2477a; --accent-soft:#fde6ee; --own:#1f9d74; --own-soft:#dcf3ea; --want:#e2477a;
+  --img-bg:#ffffff; --shadow:0 1px 2px rgba(120,60,80,.08);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1e1619; --paper:#2a2024; --ink:#f6e9ee; --muted:#bba3ad; --line:#3d2f35;
+  --accent:#ff7aa5; --accent-soft:#45222f; --own:#45c79c; --own-soft:#1d3a30; --want:#ff7aa5;
+  --img-bg:#f7f1f3; --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1e1619; --paper:#2a2024; --ink:#f6e9ee; --muted:#bba3ad; --line:#3d2f35;
+  --accent:#ff7aa5; --accent-soft:#45222f; --own:#45c79c; --own-soft:#1d3a30; --want:#ff7aa5;
+  --img-bg:#f7f1f3; --shadow:none; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC",system-ui,sans-serif;font-size:15px;line-height:1.5;
+  padding:16px max(16px,env(safe-area-inset-right,0px)) 64px max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:1120px;margin:0 auto}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+header{display:flex;align-items:center;gap:10px}
+header img{width:40px;height:40px;border-radius:10px}
+h1{font-size:clamp(20px,4.5vw,26px);font-weight:900;margin:0;flex:1;line-height:1.2}
+h1 small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
+.iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--paper);display:inline-grid;place-items:center;padding:0;position:relative}
+.iconbtn svg{width:20px;height:20px}
+#syncBtn.busy svg{animation:spin 1s linear infinite}
+#syncBtn.err{color:#d23b3b;border-color:#d23b3b}
+#syncBtn.off{color:var(--muted)}
+@keyframes spin{to{transform:rotate(360deg)}}
+#menu{position:absolute;right:0;top:46px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:6px;z-index:30;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+#menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 12px;border-radius:8px}
+#menu button:hover{background:var(--accent-soft)}
+.menuwrap{position:relative}
+
+.progress{margin:14px 0 4px;height:10px;border-radius:99px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;background:var(--own);border-radius:99px;transition:width .3s}
+.stats{display:flex;gap:14px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.stats b{color:var(--ink)}
+
+.bar{background:var(--bg);padding:12px 0 8px;margin-top:6px;display:flex;flex-direction:column;gap:8px}
+@media (min-width:700px){.bar{position:sticky;top:0;z-index:10}}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#q{flex:1;min-width:0;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--paper);padding:0 12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--paper)}
+.seg button{border:0;background:none;padding:7px 12px;font-size:14px;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--paper);border-radius:99px;padding:5px 12px;font-size:14px;white-space:nowrap}
+.chip small{color:var(--muted);margin-left:4px;font-size:12px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip[aria-pressed="true"] small{color:inherit;opacity:.75}
+
+section{margin-top:18px}
+section h2{font-size:17px;margin:0 0 8px;display:flex;align-items:baseline;gap:8px}
+section h2 .reg{font-size:12px;font-weight:500;color:var(--muted)}
+section h2 .cnt{margin-left:auto;font-size:13px;font-weight:500;color:var(--muted)}
+section h2 .cnt.done{color:var(--own);font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+@media (max-width:420px){.grid{grid-template-columns:repeat(2,1fr);gap:8px}}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow);position:relative}
+.card.own{border-color:var(--own);box-shadow:0 0 0 1px var(--own) inset}
+.card .pic{border:0;padding:0;background:var(--img-bg);aspect-ratio:1;display:grid;place-items:center;overflow:hidden}
+.card .pic img{width:100%;height:100%;object-fit:contain}
+.card:not(.own) .pic img{opacity:.55;filter:grayscale(.35)}
+.card .pic .ph{font-size:40px}
+.card .body{padding:6px 8px 8px;display:flex;flex-direction:column;gap:4px;flex:1}
+.card .nm{font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.7em}
+.card .meta{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.card .acts{display:flex;gap:6px;margin-top:auto}
+.card .acts button{flex:1;height:32px;border-radius:10px;border:1px solid var(--line);background:none;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:4px}
+.card .acts .b-own[aria-pressed="true"]{background:var(--own);border-color:var(--own);color:#fff}
+.card .acts .b-want[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--want);color:var(--want)}
+.badge{position:absolute;top:6px;left:6px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;border-radius:6px;padding:1px 6px}
+.badge.note{left:auto;right:6px;background:var(--paper);color:var(--muted);border:1px solid var(--line)}
+.empty{color:var(--muted);text-align:center;padding:40px 0}
+#mapBox{margin-top:8px}
+#map{height:min(70vh,640px);border-radius:16px;border:1px solid var(--line);background:var(--paper);z-index:0}
+#mapBox .hint{margin-top:6px}
+.leaflet-tooltip.pin-label{background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:1px 6px;font:500 12px "Noto Sans TC",system-ui,sans-serif;box-shadow:none;white-space:nowrap}
+.leaflet-tooltip.pin-label::before{display:none}
+.leaflet-popup-content{font:14px/1.6 "Noto Sans TC",system-ui,sans-serif}
+.chip.loc{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+dialog{border:0;border-radius:18px;padding:0;background:var(--paper);color:var(--ink);width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 24px)}
+dialog::backdrop{background:rgba(30,10,20,.45)}
+dialog form{padding:18px;display:flex;flex-direction:column;gap:10px}
+dialog h3{margin:0;font-size:18px}
+dialog label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+dialog input,dialog select,dialog textarea{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--bg);color:var(--ink);font-size:15px}
+dialog .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+dialog .two>label{min-width:0}
+dialog .two input,dialog .two select{width:100%;min-width:0}
+.dpic{background:var(--img-bg);border-radius:12px;height:200px;display:grid;place-items:center;overflow:hidden}
+.dpic img{max-width:100%;max-height:100%;object-fit:contain}
+.dname{font-size:16px;font-weight:700;margin:0}
+.links{display:flex;gap:12px;font-size:13px}
+.links a{color:var(--accent)}
+.acts2{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:8px 14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:#d23b3b;margin-right:auto}
+.hint{font-size:12px;color:var(--muted);margin:0}
+#s-qr svg{width:220px;height:220px;display:block;margin:0 auto;background:#fff}
+#s-cam{width:100%;border-radius:12px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:999px;font-size:13px;z-index:50}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="icon-192.png" alt="">
+    <h1>吉伊卡哇地區限定<small id="sub">載入中…</small></h1>
+    <button class="iconbtn off" id="syncBtn" title="雲端同步"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8"/><path d="M18 2v4h-4M6 22v-4h4"/></svg></button>
+    <div class="menuwrap">
+      <button class="iconbtn" id="menuBtn" title="更多" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+      <div id="menu" hidden>
+        <button id="m-add">新增商品…</button>
+        <button id="m-sync">雲端同步…</button>
+        <button id="m-export">匯出備份</button>
+        <button id="m-import">匯入備份</button>
+      </div>
+    </div>
+  </header>
+  <div class="progress"><i id="bar"></i></div>
+  <div class="stats" id="stats"></div>
+
+  <div class="bar">
+    <div class="row">
+      <input id="q" type="search" placeholder="搜尋名稱、地點、備註" autocomplete="off">
+      <div class="seg" id="modeSeg"><button data-v="list">清單</button><button data-v="map">地圖</button></div>
+      <div class="seg" id="stFilter">
+        <button data-v="all" aria-pressed="true">全部</button><button data-v="own">已擁有</button><button data-v="want">想要</button><button data-v="none">未擁有</button>
+      </div>
+    </div>
+    <div class="chips" id="catChips"></div>
+    <div class="chips" id="regChips"></div>
+  </div>
+  <div id="mapBox" hidden><div id="map"></div><p class="hint" id="mapHint"></p></div>
+  <main id="list"></main>
+</div>
+
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+
+<dialog id="itemDlg">
+  <form novalidate>
+    <div class="dpic" id="d-pic"></div>
+    <p class="dname" id="d-name"></p>
+    <label id="d-name-l">名稱<input id="d-name-in" placeholder="商品名稱"></label>
+    <label id="d-img-l">圖片網址<input id="d-img-in" placeholder="https://…（可空白）"></label>
+    <div class="links" id="d-links"></div>
+    <div class="seg" id="d-st"><button type="button" data-v="">未擁有</button><button type="button" data-v="want">想要</button><button type="button" data-v="own">已擁有</button></div>
+    <div class="two">
+      <label>地點<input id="d-loc" list="locList" placeholder="例如：京都"></label>
+      <label>種類<select id="d-cat"></select></label>
+    </div>
+    <div class="two">
+      <label>取得日期<input id="d-date" type="date"></label>
+      <label>價格<input id="d-price" placeholder="例如：¥770"></label>
+    </div>
+    <label>備註<textarea id="d-note" rows="2" placeholder="在哪買、託誰代購…"></textarea></label>
+    <div class="acts2">
+      <button type="button" class="btn danger" id="d-del" hidden>刪除</button>
+      <button type="button" class="btn" data-close>取消</button>
+      <button type="button" class="btn primary" id="d-save">儲存</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="locList"></datalist>
+
+<dialog id="syncDlg">
+  <form novalidate>
+    <h3>雲端同步</h3>
+    <p class="hint">收藏資料存在你的私人 GitHub 儲存庫（chiikawa.json），和行事曆用同一組設定。這台裝置的行事曆網頁版已經設定過的話，這裡會自動接上。</p>
+    <label>儲存庫<input id="s-repo" placeholder="帳號/儲存庫名稱" autocomplete="off"></label>
+    <label>GitHub 金鑰<input id="s-token" type="password" placeholder="github_pat_…" autocomplete="off"></label>
+    <div id="s-qrbox" hidden><div id="s-qr"></div><p class="hint">這個 QR code 裡有你的金鑰，掃完就關掉，不要拍照或傳給別人。</p></div>
+    <video id="s-cam" hidden playsinline muted></video>
+    <div class="acts2" style="justify-content:flex-start"><button type="button" class="btn" id="s-showqr">給其他裝置掃的 QR code</button><button type="button" class="btn" id="s-scan">掃描 QR code</button></div>
+    <p class="hint" id="syncState"></p>
+    <div class="acts2">
+      <button type="button" class="btn danger" id="s-off">停用同步</button>
+      <button type="button" class="btn" data-close>取消</button>
+      <button type="button" class="btn primary" id="s-save">儲存並同步</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}};
+function toast(msg){const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+
+/* ---------- places ---------- */
+const CATS={keyholder:"鐵牌",plush:"玩偶吊飾",socks:"襪子",other:"其他"};
+const REGIONS=[
+  ["北海道",["北海道","札幌","函館"]],
+  ["東北",["青森","秋田","岩手","宮城","山形","福島"]],
+  ["關東",["東京","雷門","茨城","栃木","日光","足利","群馬","埼玉","千葉","市川市","橫濱","鎌倉","箱根","大涌谷"]],
+  ["中部",["新潟","富山","石川","福井","山梨","富士山","信州","飛驒","靜岡","清水","名古屋"]],
+  ["近畿",["三重","滋賀","京都","金閣寺","大阪","兵庫","神戶","姬路","淡路","奈良","和歌山"]],
+  ["中國",["岡山","広島","尾道","宮島","山陰","島根","山口"]],
+  ["四國",["香川","愛媛","高知","鳴門"]],
+  ["九州",["福岡","北九州","佐賀","長崎","熊本","大分","宮崎","鹿児島","奄美"]],
+  ["沖繩",["沖繩"]],
+  ["海外",["香港","澳門","台灣","韓國","澳洲"]],
+  ["跨地區",["東日本","東海．西日本","瀨戶內","溫泉地","度假地","空港"]]
+];
+const LOC_REG={},LOC_ORD={};
+REGIONS.forEach(([r,locs],ri)=>locs.forEach((l,li)=>{LOC_REG[l]=r;LOC_ORD[l]=ri*100+li}));
+const regionOf=loc=>loc?(LOC_REG[loc]||"其他地點"):"未分類";
+const REG_ORDER=[...REGIONS.map(r=>r[0]),"其他地點","未分類"];
+// Map pin per location (city or prefecture centre). 跨地區 labels have no single place, so no pin.
+const COORDS={"北海道":[43.4,142.6],"札幌":[43.062,141.354],"函館":[41.769,140.729],"青森":[40.822,140.747],"秋田":[39.72,140.103],"岩手":[39.702,141.155],"宮城":[38.268,140.869],"山形":[38.255,140.34],"福島":[37.761,140.475],
+"東京":[35.69,139.692],"雷門":[35.711,139.796],"茨城":[36.366,140.47],"栃木":[36.555,139.883],"日光":[36.748,139.617],"足利":[36.333,139.452],"群馬":[36.389,139.063],"埼玉":[35.862,139.645],"千葉":[35.607,140.106],"市川市":[35.72,139.926],"橫濱":[35.444,139.638],"鎌倉":[35.319,139.55],"箱根":[35.232,139.107],"大涌谷":[35.243,139.02],
+"新潟":[37.916,139.036],"富山":[36.695,137.214],"石川":[36.561,136.656],"福井":[36.064,136.22],"山梨":[35.662,138.569],"富士山":[35.361,138.727],"信州":[36.648,138.194],"飛驒":[36.146,137.252],"靜岡":[34.976,138.383],"清水":[35.016,138.486],"名古屋":[35.181,136.907],
+"三重":[34.719,136.508],"滋賀":[35.005,135.869],"京都":[35.012,135.768],"金閣寺":[35.039,135.729],"大阪":[34.694,135.502],"兵庫":[34.95,134.85],"神戶":[34.69,135.196],"姬路":[34.827,134.69],"淡路":[34.343,134.814],"奈良":[34.685,135.805],"和歌山":[34.226,135.167],
+"岡山":[34.656,133.92],"広島":[34.385,132.455],"尾道":[34.406,133.195],"宮島":[34.298,132.322],"山陰":[35.504,133.233],"島根":[35.468,133.048],"山口":[34.178,131.474],"瀨戶內":[34.3,133.6],
+"香川":[34.34,134.043],"愛媛":[33.839,132.766],"高知":[33.559,133.531],"鳴門":[34.178,134.609],
+"福岡":[33.59,130.402],"北九州":[33.883,130.875],"佐賀":[33.264,130.301],"長崎":[32.75,129.878],"熊本":[32.803,130.708],"大分":[33.24,131.609],"宮崎":[31.908,131.42],"鹿児島":[31.597,130.557],"奄美":[28.383,129.499],"沖繩":[26.212,127.681],
+"香港":[22.319,114.169],"澳門":[22.199,113.544],"台灣":[25.033,121.565],"韓國":[37.566,126.978],"澳洲":[-25.274,133.775]};
+
+/* ---------- data ---------- */
+// catalog: public item list (catalog.json). user: what this person owns/wants, synced to Self-owned-Data/chiikawa.json.
+const DATA_KEY="chiikawa-data",CAT_KEY="chiikawa-catalog",VIEW_KEY="chiikawa-view";
+let catalog=[];
+let user={items:[],custom:[]};
+try{const d=JSON.parse(ls.get(DATA_KEY)||"null");if(d){user.items=d.items||[];user.custom=d.custom||[]}}catch(e){}
+let view={st:"all",cat:"keyholder",reg:"all",loc:"",mode:"list",q:""};
+try{Object.assign(view,JSON.parse(ls.get(VIEW_KEY)||"{}"),{q:"",loc:""})}catch(e){}
+const uid=()=>"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+function persist(){ls.set(DATA_KEY,JSON.stringify({items:user.items,custom:user.custom,savedAt:new Date().toISOString()}));scheduleSync()}
+const uMap=()=>new Map(user.items.map(u=>[u.id,u]));
+function allItems(){
+  const um=uMap();
+  return [...user.custom.map(c=>({...c,custom:true})),...catalog].map(c=>{
+    const u=um.get(c.id)||{};
+    return {...c,loc:u.loc??c.loc??"",cat:u.cat||c.cat||"other",st:u.st||"",date:u.date||"",price:u.price||"",note:u.note||""};
+  });
+}
+// Store only what differs from the catalog, and drop rows that say nothing.
+function setUser(id,patch){
+  const i=user.items.findIndex(u=>u.id===id);
+  const row={...(i>=0?user.items[i]:{id}),...patch};
+  const base=catalog.find(c=>c.id===id)||user.custom.find(c=>c.id===id)||{};
+  if(row.loc===(base.loc||""))delete row.loc;
+  if(row.cat===(base.cat||"other"))delete row.cat;
+  for(const k of ["st","date","price","note"])if(!row[k])delete row[k];
+  const empty=Object.keys(row).length===1;
+  if(i>=0){if(empty)user.items.splice(i,1);else user.items[i]=row}
+  else if(!empty)user.items.push(row);
+}
+
+/* ---------- render ---------- */
+const NEW_DAYS=45;
+function isNew(it){return it.added&&(Date.now()-new Date(it.added))/864e5<NEW_DAYS}
+function matches(it,q){
+  if(!q)return true;
+  return [it.name,it.loc,regionOf(it.loc),CATS[it.cat],it.note,it.price].some(s=>s&&String(s).toLowerCase().includes(q));
+}
+function render(){
+  const items=allItems();
+  const own=items.filter(i=>i.st==="own").length,want=items.filter(i=>i.st==="want").length;
+  $("#sub").textContent=`已收集 ${own} / ${items.length}`;
+  $("#bar").style.width=(items.length?own/items.length*100:0)+"%";
+  $("#stats").innerHTML=`<span>已擁有 <b>${own}</b></span><span>想要 <b>${want}</b></span><span>未擁有 <b>${items.length-own}</b></span>`+(catUpdated?`<span>目錄更新：${esc(catUpdated)}</span>`:"");
+
+  document.querySelectorAll("#stFilter button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===view.st));
+  const byCat=Object.keys(CATS).map(k=>[k,items.filter(i=>i.cat===k)]);
+  $("#catChips").innerHTML=chip("all","全部種類",items,view.cat,"cat")+byCat.filter(([,a])=>a.length).map(([k,a])=>chip(k,CATS[k],a,view.cat,"cat")).join("");
+  const byReg=REG_ORDER.map(r=>[r,items.filter(i=>regionOf(i.loc)===r)]).filter(([,a])=>a.length);
+  if(view.reg!=="all"&&!byReg.some(([r])=>r===view.reg))view.reg="all";
+  $("#regChips").innerHTML=(view.loc?`<button class="chip loc" data-clearloc>📍 ${esc(view.loc)} ✕</button>`:"")+chip("all","全部地區",items,view.reg,"reg")+byReg.map(([r,a])=>chip(r,r,a,view.reg,"reg")).join("");
+  document.querySelectorAll("#modeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===view.mode));
+  const onMap=view.mode==="map";
+  $("#mapBox").hidden=!onMap;$("#list").hidden=onMap;
+  if(onMap){renderMap(items.filter(i=>view.cat==="all"||i.cat===view.cat));return}
+
+  const q=view.q.trim().toLowerCase();
+  const shown=items.filter(i=>(view.st==="all"||(view.st==="none"?i.st!=="own":i.st===view.st))
+    &&(view.cat==="all"||i.cat===view.cat)&&(view.reg==="all"||regionOf(i.loc)===view.reg)&&(!view.loc||i.loc===view.loc)&&matches(i,q));
+  const groups=new Map();
+  for(const it of shown){const k=it.loc||"";if(!groups.has(k))groups.set(k,[]);groups.get(k).push(it)}
+  const keys=[...groups.keys()].sort((a,b)=>{
+    const ra=REG_ORDER.indexOf(regionOf(a)),rb=REG_ORDER.indexOf(regionOf(b));
+    return ra-rb||(LOC_ORD[a]??9999)-(LOC_ORD[b]??9999)||a.localeCompare(b,"zh-Hant");
+  });
+  const totals=new Map();for(const it of items){const k=it.loc||"";const t=totals.get(k)||[0,0];t[1]++;if(it.st==="own")t[0]++;totals.set(k,t)}
+  $("#list").innerHTML=keys.length?keys.map(k=>{
+    const [o,t]=totals.get(k);
+    return `<section><h2>${esc(k||"未分類")}<span class="reg">${k&&regionOf(k)!=="其他地點"?esc(regionOf(k)):""}</span><span class="cnt${o===t?" done":""}">${o} / ${t}</span></h2><div class="grid">${groups.get(k).map(card).join("")}</div></section>`;
+  }).join(""):`<p class="empty">沒有符合的商品</p>`;
+  $("#locList").innerHTML=[...new Set([...REGIONS.flatMap(r=>r[1]),...items.map(i=>i.loc).filter(Boolean)])].map(l=>`<option value="${esc(l)}">`).join("");
+}
+function chip(v,label,arr,cur,kind){
+  const o=arr.filter(i=>i.st==="own").length;
+  return `<button class="chip" data-${kind}="${esc(v)}" aria-pressed="${cur===v}">${esc(label)}<small>${o}/${arr.length}</small></button>`;
+}
+function pic(it){return it.img?`<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'🎁'}))">`:`<span class="ph">🎁</span>`}
+function card(it){
+  return `<div class="card${it.st==="own"?" own":""}" data-id="${esc(it.id)}">
+    ${isNew(it)?`<span class="badge">新</span>`:""}${it.note||it.price?`<span class="badge note">✎</span>`:""}
+    <button class="pic" data-open title="詳細">${pic(it)}</button>
+    <div class="body"><div class="nm">${esc(it.name)}</div>
+    <div class="meta">${esc(CATS[it.cat]||"")}${it.date?" · "+esc(it.date):""}</div>
+    <div class="acts"><button class="b-want" aria-pressed="${it.st==="want"}" title="想要">♡ 想要</button><button class="b-own" aria-pressed="${it.st==="own"}" title="已擁有">✓ 有了</button></div></div>
+  </div>`;
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{
+  const c=e.target.closest(".chip");
+  if(c){if(c.dataset.cat)view.cat=c.dataset.cat;if(c.dataset.reg){view.reg=c.dataset.reg;view.loc=""}if("clearloc" in c.dataset)view.loc="";saveView();render();return}
+  const card=e.target.closest(".card");
+  if(card){
+    const id=card.dataset.id,it=allItems().find(i=>i.id===id);if(!it)return;
+    if(e.target.closest("[data-open]"))return openItem(it);
+    if(e.target.closest(".b-own")){const on=it.st!=="own";setUser(id,{st:on?"own":"",date:on?(it.date||today()):it.date});persist();render();toast(on?"已加入收藏":"已取消");return}
+    if(e.target.closest(".b-want")){setUser(id,{st:it.st==="want"?"":"want"});persist();render();return}
+  }
+  if(e.target.closest("[data-close]"))e.target.closest("dialog").close();
+});
+$("#modeSeg").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.mode=b.dataset.v;saveView();render()};
+$("#stFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;saveView();render()};
+let qTimer;$("#q").oninput=e=>{clearTimeout(qTimer);qTimer=setTimeout(()=>{view.q=e.target.value;render()},150)};
+function saveView(){ls.set(VIEW_KEY,JSON.stringify({st:view.st,cat:view.cat,reg:view.reg,mode:view.mode}))}
+
+const menu=$("#menu"),showMenu=v=>{menu.hidden=!v;$("#menuBtn").setAttribute("aria-expanded",v)};
+$("#menuBtn").onclick=e=>{e.stopPropagation();showMenu(menu.hidden)};
+menu.addEventListener("click",e=>{if(e.target.closest("button"))showMenu(false)});
+document.addEventListener("click",e=>{if(!menu.hidden&&!e.target.closest(".menuwrap"))showMenu(false)});
+
+/* ---------- map ---------- */
+let map=null,mapLayer=null,leafletLoading=null,mapFitted=false;
+function loadLeaflet(){
+  if(window.L)return Promise.resolve();
+  if(!leafletLoading){
+    const css=document.createElement("link");css.rel="stylesheet";css.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css";document.head.appendChild(css);
+    leafletLoading=loadScript("https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js");
+  }
+  return leafletLoading;
+}
+// Zoomed out: one bubble per region (tap to zoom in). Zoomed in: one pin per location, tap for a popup.
+const REG_CENTER={"北海道":[43.3,142.8],"東北":[39.4,140.7],"關東":[36.0,139.8],"中部":[36.5,137.6],"近畿":[34.5,135.7],"中國":[35.0,132.7],"四國":[33.5,133.4],"九州":[32.5,130.8],"沖繩":[26.4,127.9]};
+const REG_LABEL_DIR={"北海道":"right","東北":"right","關東":"right","中部":"top","近畿":"bottom","中國":"top","四國":"bottom","九州":"left","沖繩":"right"};
+const LOC_ZOOM=6.5,LABEL_ZOOM=6.5;
+let mapItems=[];
+async function renderMap(items){
+  mapItems=items;
+  try{await loadLeaflet()}catch(e){$("#mapHint").textContent="地圖載入失敗，請檢查網路。";return}
+  if(view.mode!=="map")return;
+  if(!map){
+    map=L.map("map",{zoomSnap:.5});
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:18,subdomains:"abcd",
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
+    mapLayer=L.layerGroup().addTo(map);
+    let lastBand=-1;
+    map.on("zoomend",()=>{const z=map.getZoom(),band=z<LOC_ZOOM?0:z<LABEL_ZOOM?1:2;if(band!==lastBand){lastBand=band;drawPins()}});
+    map.getContainer().addEventListener("click",e=>{const b=e.target.closest("[data-goloc]");if(b)showLoc(b.dataset.goloc)});
+  }
+  map.invalidateSize();
+  if(!mapFitted){map.fitBounds([[30.8,128.5],[45.5,146]]);mapFitted=true}
+  drawPins();
+}
+function showLoc(loc){view.loc=loc;view.reg="all";view.mode="list";saveView();render();window.scrollTo({top:0,behavior:"smooth"})}
+function tally(list){const t={own:0,all:0};for(const it of list){t.all++;if(it.st==="own")t.own++}return t}
+function drawPins(){
+  if(!map)return;
+  mapLayer.clearLayers();
+  const z=map.getZoom(),css=getComputedStyle(document.documentElement),own=css.getPropertyValue("--own").trim(),acc=css.getPropertyValue("--accent").trim();
+  const color=t=>t.own===t.all?own:t.own?acc:"#9a8a92";
+  const byLoc=new Map();for(const it of mapItems){if(!it.loc)continue;if(!byLoc.has(it.loc))byLoc.set(it.loc,[]);byLoc.get(it.loc).push(it)}
+  const noPin=[];
+  if(z<LOC_ZOOM){
+    for(const [reg,c] of Object.entries(REG_CENTER)){
+      const locs=[...byLoc.keys()].filter(l=>regionOf(l)===reg&&COORDS[l]);if(!locs.length)continue;
+      const t=tally(locs.flatMap(l=>byLoc.get(l)));
+      L.circleMarker(c,{radius:8+Math.sqrt(t.all)*1.2,color:"#fff",weight:2,fillColor:color(t),fillOpacity:.9})
+        .bindTooltip(`${reg} ${t.own}/${t.all}`,{permanent:true,direction:REG_LABEL_DIR[reg],offset:{right:[10,0],left:[-10,0],top:[0,-10],bottom:[0,10]}[REG_LABEL_DIR[reg]],className:"pin-label"})
+        .on("click",()=>map.flyToBounds(L.latLngBounds(locs.map(l=>COORDS[l])).pad(.3),{maxZoom:9,duration:.6}))
+        .addTo(mapLayer);
+    }
+  }else{
+    for(const [loc,list] of byLoc){
+      const c=COORDS[loc],t=tally(list);
+      if(!c)continue;
+      const m=L.circleMarker(c,{radius:7+Math.sqrt(t.all)*1.8,color:"#fff",weight:2,fillColor:color(t),fillOpacity:.9})
+        .bindPopup(`<b>${esc(loc)}</b>（${esc(regionOf(loc))}）<br>${CATS[view.cat]||"全部"}：已擁有 ${t.own} / ${t.all}<br><button class="btn primary" style="margin-top:6px" data-goloc="${esc(loc)}">看這裡的商品</button>`);
+      if(z>=LABEL_ZOOM)m.bindTooltip(`${esc(loc)} ${t.own}/${t.all}`,{permanent:true,direction:"right",offset:[8,0],className:"pin-label"});
+      m.addTo(mapLayer);
+    }
+  }
+  for(const [loc,list] of byLoc)if(!COORDS[loc]||regionOf(loc)==="海外"&&z<LOC_ZOOM){const t=tally(list);noPin.push(`${loc} ${t.own}/${t.all}`)}
+  $("#mapHint").textContent=(z<LOC_ZOOM?"點地區放大，再點地點看商品。":"點圓點看地點名稱和商品。")+"綠色＝全部都有，粉紅＝有一部分，灰色＝還沒有。"+(noPin.length?"　不在地圖上："+noPin.join("、"):"");
+}
+
+/* ---------- item dialog ---------- */
+$("#d-cat").innerHTML=Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
+let editing=null,dSt="";
+function setDSt(v){dSt=v;document.querySelectorAll("#d-st button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v))}
+$("#d-st").onclick=e=>{const b=e.target.closest("button");if(!b)return;setDSt(b.dataset.v);if(b.dataset.v==="own"&&!$("#d-date").value)$("#d-date").value=today()};
+function openItem(it){
+  editing=it;const custom=!it||it.custom;
+  $("#d-pic").innerHTML=it?pic(it):`<span class="ph" style="font-size:56px">🎁</span>`;
+  $("#d-name").textContent=it&&!custom?it.name:"";$("#d-name").hidden=custom;
+  $("#d-name-l").hidden=!custom;$("#d-img-l").hidden=!custom;
+  $("#d-name-in").value=it?.name||"";$("#d-img-in").value=it?.img||"";
+  const kw=encodeURIComponent("ちいかわ "+(it?.name||""));
+  $("#d-links").innerHTML=it?`<a href="https://www.google.com/search?tbm=isch&q=${kw}" target="_blank" rel="noopener">Google 圖片</a><a href="https://jp.mercari.com/search?keyword=${kw}" target="_blank" rel="noopener">Mercari</a>`+(it.loc&&COORDS[it.loc]?`<a href="https://www.google.com/maps/search/?api=1&query=${COORDS[it.loc].join(",")}" target="_blank" rel="noopener">${esc(it.loc)} 在哪裡</a>`:""):"";
+  setDSt(it?.st||"");
+  $("#d-loc").value=it?.loc||"";$("#d-cat").value=it?.cat||"keyholder";
+  $("#d-date").value=it?.date||"";$("#d-price").value=it?.price||"";$("#d-note").value=it?.note||"";
+  $("#d-del").hidden=!it||!it.custom;
+  $("#itemDlg").showModal();
+}
+$("#d-save").onclick=()=>{
+  const vals={st:dSt,loc:$("#d-loc").value.trim(),cat:$("#d-cat").value,date:$("#d-date").value,price:$("#d-price").value.trim(),note:$("#d-note").value.trim()};
+  let id=editing?.id;
+  if(!editing||editing.custom){
+    const name=$("#d-name-in").value.trim();if(!name){$("#d-name-in").focus();toast("請填寫名稱");return}
+    const c={name,img:$("#d-img-in").value.trim(),loc:vals.loc,cat:vals.cat};
+    if(id){const i=user.custom.findIndex(x=>x.id===id);user.custom[i]={...user.custom[i],...c}}
+    else{id=uid();user.custom.unshift({id,...c,added:today()})}
+  }
+  setUser(id,vals);persist();$("#itemDlg").close();render();toast("已儲存");
+};
+$("#d-del").onclick=()=>{
+  if(!editing?.custom||!confirm("刪除「"+editing.name+"」？"))return;
+  user.custom=user.custom.filter(c=>c.id!==editing.id);user.items=user.items.filter(u=>u.id!==editing.id);
+  persist();$("#itemDlg").close();render();toast("已刪除");
+};
+$("#m-add").onclick=()=>openItem(null);
+
+/* ---------- backup ---------- */
+$("#m-export").onclick=()=>{
+  const blob=new Blob([JSON.stringify({items:user.items,custom:user.custom,exportedAt:new Date().toISOString()},null,1)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="吉伊卡哇收藏備份-"+today()+".json";
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("已匯出備份");
+};
+$("#m-import").onclick=()=>$("#importFile").click();
+// Accepts this app's backup, or the old app's my_collection_status.json ({"tphoto_123_0_b.png":{"owned":true}}).
+$("#importFile").onchange=async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  let d;try{d=JSON.parse(await f.text())}catch(err){toast("檔案看不懂");return}
+  let n=0;
+  if(Array.isArray(d.items)){
+    for(const c of d.custom||[])if(!user.custom.some(x=>x.id===c.id)){user.custom.push(c);n++}
+    for(const u of d.items){const i=user.items.findIndex(x=>x.id===u.id);if(i>=0)user.items[i]={...user.items[i],...u};else user.items.push(u);n++}
+  }else{
+    for(const [k,v] of Object.entries(d)){const m=/tphoto_(\d+)_/.exec(k);if(m&&v&&v.owned){setUser(m[1],{st:"own"});n++}}
+  }
+  if(!n){toast("沒有可匯入的資料");return}
+  persist();render();toast(`已匯入 ${n} 筆`);
+};
+
+/* ---------- GitHub sync (same scheme as the calendar; the repo+token setting is shared) ---------- */
+const SYNC_FILE="chiikawa.json",BASE_KEY="chiikawa-gh-base",SHA_KEY="chiikawa-gh-sha";
+let syncCfg=null;const readCfg=()=>{try{syncCfg=JSON.parse(ls.get("gh-sync")||"null")}catch(e){syncCfg=null}};readCfg();
+let syncBusy=false,syncAgain=false,syncTimer=null,lastSync=0,syncErr="";
+const snap=()=>({items:user.items,custom:user.custom});
+const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const b64enc=s=>{const u=new TextEncoder().encode(s);let b="";for(let i=0;i<u.length;i+=0x8000)b+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(b)};
+const b64dec=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,"")),c=>c.charCodeAt(0)));
+async function gh(method,body){
+  const r=await fetch(`https://api.github.com/repos/${syncCfg.repo}/contents/${SYNC_FILE}`+(method==="GET"?"?t="+Date.now():""),{method,cache:"no-store",
+    headers:{Authorization:"Bearer "+syncCfg.token,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28",...(body?{"Content-Type":"application/json"}:{})},body:body?JSON.stringify(body):undefined});
+  if(method==="GET"&&r.status===404)return null;
+  if(!r.ok){const e=new Error(r.status===401?"金鑰無效或過期":r.status===403?"金鑰沒有這個儲存庫的權限":r.status===404?"找不到儲存庫":r.status===409||r.status===422?"conflict":"GitHub 回應 "+r.status);e.status=r.status;throw e}
+  return r.json();
+}
+function mergeColl(b,l,r){
+  const M=a=>new Map((a||[]).map(x=>[x.id,x])),B=M(b),L=M(l),R=M(r);
+  const ids=a=>(a||[]).map(x=>x.id).join(),lOrd=ids(l)!==ids(b);
+  const order=[...(lOrd?l:r),...(lOrd?r:l)].map(x=>x.id).filter((id,i,a)=>a.indexOf(id)===i);
+  const out=[];
+  for(const id of order){
+    const inB=B.has(id),inL=L.has(id),inR=R.has(id);
+    const chL=inL&&(!inB||!same(L.get(id),B.get(id))),chR=inR&&(!inB||!same(R.get(id),B.get(id)));
+    if(inL&&inR)out.push(chL?L.get(id):R.get(id));
+    else if(inL){if(!inB||chL)out.push(L.get(id))}
+    else if(inR){if(!inB||chR)out.push(R.get(id))}
+  }
+  return out;
+}
+function setSyncUI(state){
+  const b=$("#syncBtn");
+  b.className="iconbtn "+(!syncCfg?"off":state);
+  b.title=!syncCfg?"雲端同步：尚未設定":state==="busy"?"同步中…":state==="err"?"同步失敗："+syncErr:"已同步"+(lastSync?"（"+new Date(lastSync).toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})+"）":"");
+  $("#syncState").textContent=!syncCfg?"尚未設定。":state==="busy"?"同步中…":state==="err"?"⚠ "+syncErr:"✓ "+b.title;
+}
+function scheduleSync(ms){if(!syncCfg)return;clearTimeout(syncTimer);syncTimer=setTimeout(syncNow,ms??1500)}
+async function syncNow(){
+  if(!syncCfg)return;
+  if(syncBusy){syncAgain=true;return}
+  syncBusy=true;setSyncUI("busy");
+  try{
+    for(let tries=0;tries<3;tries++){
+      const local=snap(),base=JSON.parse(ls.get(BASE_KEY)||"null"),sha=ls.get(SHA_KEY);
+      const remote=await gh("GET");
+      let next=local,put=true,rsha=remote?remote.sha:undefined;
+      if(remote){
+        const rd=JSON.parse(b64dec(remote.content));
+        const rv={items:rd.items||[],custom:rd.custom||[]};
+        if(remote.sha===sha&&base)put=!same(local,base);
+        else{
+          next={};for(const k of ["items","custom"])next[k]=mergeColl(base?base[k]:[],local[k],rv[k]);
+          put=!same(next,rv);
+          if(!same(next,local)){user.items=next.items;user.custom=next.custom;ls.set(DATA_KEY,JSON.stringify({...next,savedAt:new Date().toISOString()}));render()}
+        }
+      }
+      if(put){
+        try{const res=await gh("PUT",{message:"chiikawa sync "+new Date().toISOString(),content:b64enc(JSON.stringify({...next,savedAt:new Date().toISOString()},null,1)),...(rsha?{sha:rsha}:{})});rsha=res.content.sha}
+        catch(e){if(e.message==="conflict")continue;throw e}
+      }
+      ls.set(BASE_KEY,JSON.stringify(next));ls.set(SHA_KEY,rsha||"");
+      lastSync=Date.now();syncErr="";setSyncUI("ok");break;
+    }
+  }catch(e){syncErr=e.message||String(e);setSyncUI("err")}
+  finally{syncBusy=false;if(syncAgain){syncAgain=false;scheduleSync(300)}}
+}
+function useCfg(cfg){
+  if(!syncCfg||syncCfg.repo!==cfg.repo){ls.set(BASE_KEY,null);ls.set(SHA_KEY,null)}
+  syncCfg={repo:cfg.repo,token:cfg.token};ls.set("gh-sync",JSON.stringify(syncCfg));
+}
+/* QR hand-off: the setup travels in the URL fragment, which browsers never send to a server. Calendar QR codes work too. */
+const SETUP_URL="https://koyelalazy.github.io/Self-owned-Tools/chiikawa/";
+function importSetup(text){
+  const m=/#sync=([^&\s]+)/.exec(text);
+  let cfg;try{cfg=JSON.parse(b64dec(decodeURIComponent(m?m[1]:text.trim())))}catch(e){toast("看不懂這個 QR code");return false}
+  if(!cfg||!/^[\w.-]+\/[\w.-]+$/.test(cfg.repo||"")||!cfg.token){toast("看不懂這個 QR code");return false}
+  useCfg(cfg);syncNow().then(()=>toast(syncErr?"同步失敗："+syncErr:"已開啟同步"));
+  return true;
+}
+if(/^#sync=/.test(location.hash)){importSetup(location.hash);history.replaceState(null,"",location.pathname+location.search)}
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+async function showQR(){
+  const box=$("#s-qrbox");if(!box.hidden){box.hidden=true;$("#s-qr").innerHTML="";return}
+  if(!window.qrcode)await loadScript("qrcode.min.js").catch(()=>{});
+  if(!window.qrcode){toast("QR code 載入失敗");return}
+  const q=qrcode(0,"M");q.addData(SETUP_URL+"#sync="+encodeURIComponent(b64enc(JSON.stringify(syncCfg))));q.make();
+  $("#s-qr").innerHTML=q.createSvgTag({cellSize:4,margin:4,scalable:true});box.hidden=false;
+}
+let camStream=null,camLoop=0;
+function stopScan(){cancelAnimationFrame(camLoop);if(camStream)camStream.getTracks().forEach(t=>t.stop());camStream=null;$("#s-cam").hidden=true}
+async function startScan(){
+  if(camStream){stopScan();return}
+  const v=$("#s-cam");
+  try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false})}catch(e){toast("沒辦法開相機，請改用手機相機掃");return}
+  v.srcObject=camStream;v.hidden=false;await v.play().catch(()=>{});
+  let detect;
+  if("BarcodeDetector" in window){const bd=new BarcodeDetector({formats:["qr_code"]});detect=async()=>(await bd.detect(v))[0]?.rawValue}
+  else{
+    if(!window.jsQR)await loadScript("jsQR.min.js").catch(()=>{});
+    if(!window.jsQR){stopScan();toast("掃描功能載入失敗，請改用手機相機掃");return}
+    const c=document.createElement("canvas"),x=c.getContext("2d",{willReadFrequently:true});
+    detect=async()=>{if(!v.videoWidth)return;c.width=v.videoWidth;c.height=v.videoHeight;x.drawImage(v,0,0);return jsQR(x.getImageData(0,0,c.width,c.height).data,c.width,c.height)?.data};
+  }
+  const tick=async()=>{if(!camStream)return;let r;try{r=await detect()}catch(e){}
+    if(r&&/#sync=/.test(r)){stopScan();if(importSetup(r))$("#syncDlg").close();return}
+    camLoop=requestAnimationFrame(tick)};
+  tick();
+}
+$("#s-showqr").onclick=showQR;$("#s-scan").onclick=startScan;
+$("#syncDlg").addEventListener("close",()=>{stopScan();$("#s-qrbox").hidden=true;$("#s-qr").innerHTML=""});
+function openSync(){readCfg();$("#s-showqr").hidden=!syncCfg;$("#s-scan").hidden=!navigator.mediaDevices;$("#s-repo").value=syncCfg?.repo||"koyelalazy/Self-owned-Data";$("#s-token").value=syncCfg?.token||"";$("#s-off").hidden=!syncCfg;setSyncUI(syncErr?"err":"ok");$("#syncDlg").showModal()}
+$("#syncBtn").onclick=openSync;$("#m-sync").onclick=openSync;
+$("#s-save").onclick=()=>{
+  const repo=$("#s-repo").value.trim().replace(/^https:\/\/github\.com\//,"").replace(/\/$/,""),token=$("#s-token").value.trim();
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)||!token){toast("請填好儲存庫和金鑰");return}
+  useCfg({repo,token});
+  syncNow().then(()=>{if(!syncErr){$("#syncDlg").close();toast("已開啟同步")}});
+};
+$("#s-off").onclick=()=>{
+  if(!confirm("停用同步？行事曆網頁版在這台裝置上也會一起停用。"))return;
+  syncCfg=null;["gh-sync",BASE_KEY,SHA_KEY].forEach(k=>ls.set(k,null));setSyncUI("ok");$("#syncDlg").close();toast("已停用同步");
+};
+
+/* ---------- start ---------- */
+let catUpdated="";
+function useCatalog(c){catalog=c.items||[];catUpdated=c.updated||""}
+try{const c=JSON.parse(ls.get(CAT_KEY)||"null");if(c)useCatalog(c)}catch(e){}
+$("#q").value="";render();setSyncUI("ok");
+fetch("catalog.json",{cache:"no-cache"}).then(r=>r.ok?r.json():Promise.reject()).then(c=>{useCatalog(c);ls.set(CAT_KEY,JSON.stringify(c));render()})
+  .catch(()=>{if(!catalog.length)toast("商品目錄載入失敗")});
+if(syncCfg)syncNow();
+setInterval(()=>{if(document.visibilityState==="visible")scheduleSync(0)},60000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){readCfg();scheduleSync(0)}});
+</script>
+</body>
+</html>
