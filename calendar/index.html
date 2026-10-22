@@ -370,8 +370,9 @@ dialog{max-height:calc(100vh - 60px)}
     <h2>雲端同步</h2>
     <p class="hint">資料會存在你的私人 GitHub 儲存庫。電腦和手機填同一組設定，就會自動同步。</p>
     <label>儲存庫<input id="s-repo" placeholder="帳號/儲存庫名稱" autocomplete="off"></label>
-    <label>GitHub 金鑰<input id="s-token" type="password" placeholder="github_pat_…" autocomplete="off"></label>
-    <p class="hint">金鑰只存在這台裝置上。</p>
+    <label>密碼<input id="s-pass" type="password" placeholder="至少 8 個字" autocomplete="current-password"></label>
+    <label>GitHub 金鑰（只有第一次設定時要填）<input id="s-token" type="password" placeholder="github_pat_…" autocomplete="off"></label>
+    <p class="hint">第一次在電腦上：貼金鑰並設一組密碼。其他裝置只要輸入密碼。</p>
     <p id="syncState"></p>
     <div class="dlg-acts">
       <button type="button" class="btn danger" id="s-off">停用同步</button>
@@ -858,11 +859,46 @@ $("#tbMode").onclick=()=>setMode(!noteMode);
   window.addEventListener("blur",()=>showMenu(false));
   $("#tbClose").onclick=()=>window.desk.close();
 })();
-function openSync(){$("#s-repo").value=syncCfg?.repo||"koyelalazy/Self-owned-Data";$("#s-token").value=syncCfg?.token||"";$("#s-off").hidden=!syncCfg;setSyncUI(syncErr?"err":"ok");$("#syncDlg").showModal()}
+/* password vault: the token, encrypted with the user's password, kept in the public tools repo */
+const VAULT_PATH="calendar/vault.json";
+const vaultRepo=repo=>repo.split("/")[0]+"/Self-owned-Tools";
+const u8b64=u=>btoa(String.fromCharCode(...u)),b64u8=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function vaultKey(pass,salt){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:600000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function saveVault(repo,token,pass){
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},await vaultKey(pass,salt),new TextEncoder().encode(JSON.stringify({repo,token}))));
+  const body={v:1,salt:u8b64(salt),iv:u8b64(iv),ct:u8b64(ct)};
+  const url=`https://api.github.com/repos/${vaultRepo(repo)}/contents/${VAULT_PATH}`,H={Authorization:"Bearer "+token,Accept:"application/vnd.github+json"};
+  const cur=await fetch(url+"?t="+Date.now(),{headers:H,cache:"no-store"});
+  const sha=cur.ok?(await cur.json()).sha:undefined;
+  const r=await fetch(url,{method:"PUT",headers:{...H,"Content-Type":"application/json"},body:JSON.stringify({message:"update sync vault",content:btoa(JSON.stringify(body,null,1)),...(sha?{sha}:{})})});
+  if(!r.ok)throw new Error(r.status===401?"金鑰無效或過期":r.status===403||r.status===404?"金鑰也要勾選 Self-owned-Tools（Contents 可讀寫），才能存密碼":"GitHub 回應 "+r.status);
+}
+async function openVault(repo,pass){
+  const r=await fetch(`https://api.github.com/repos/${vaultRepo(repo)}/contents/${VAULT_PATH}?t=`+Date.now(),{headers:{Accept:"application/vnd.github+json"},cache:"no-store"});
+  if(r.status===404)throw new Error("還沒設定密碼，請先在電腦上貼金鑰並設定密碼");
+  if(!r.ok)throw new Error("讀不到密碼設定（GitHub 回應 "+r.status+"）");
+  const v=JSON.parse(atob((await r.json()).content.replace(/\s/g,"")));
+  try{return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64u8(v.iv)},await vaultKey(pass,b64u8(v.salt)),b64u8(v.ct))))}
+  catch(e){throw new Error("密碼不對")}
+}
+function openSync(){$("#s-repo").value=syncCfg?.repo||"koyelalazy/Self-owned-Data";$("#s-token").value="";$("#s-pass").value="";$("#s-off").hidden=!syncCfg;setSyncUI(syncErr?"err":"ok");$("#syncDlg").showModal()}
 $("#tbSync").onclick=openSync;$("#syncBtn").onclick=openSync;
-$("#s-save").onclick=()=>{
-  const repo=$("#s-repo").value.trim().replace(/^https:\/\/github\.com\//,"").replace(/\/$/,""),token=$("#s-token").value.trim();
-  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)||!token){toast("請填好儲存庫和金鑰");return}
+$("#s-save").onclick=async()=>{
+  const repo=$("#s-repo").value.trim().replace(/^https:\/\/github\.com\//,"").replace(/\/$/,""),pass=$("#s-pass").value;
+  let token=$("#s-token").value.trim();
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){toast("請填好儲存庫");return}
+  if(!token&&!pass){toast(syncCfg?"沒有變更":"請輸入密碼");return}
+  if(pass&&pass.length<8){toast("密碼至少要 8 個字");return}
+  const btn=$("#s-save"),st=$("#syncState");btn.disabled=true;st.textContent="處理中…";
+  try{
+    if(token&&pass)await saveVault(repo,token,pass);
+    else if(!token){if(!pass&&syncCfg)token=syncCfg.token;else token=(await openVault(repo,pass)).token}
+  }catch(e){st.textContent="⚠ "+(e.message||e);btn.disabled=false;return}
+  btn.disabled=false;
   if(!syncCfg||syncCfg.repo!==repo){ls.set("gh-base",null);ls.set("gh-sha",null)}
   syncCfg={repo,token};ls.set("gh-sync",JSON.stringify(syncCfg));
   syncNow().then(()=>{if(!syncErr){$("#syncDlg").close();toast("已開啟同步")}});
