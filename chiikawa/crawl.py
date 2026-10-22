@@ -74,10 +74,10 @@ class ListParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
         if tag == "a":
-            self.open = {"name": (a.get("title") or "").strip(), "href": a.get("href") or ""}
+            self.open = {"name": fix_text(a.get("title") or "").strip(), "href": a.get("href") or ""}
         elif tag == "img" and self.open is not None:
             if not self.open["name"]:
-                self.open["name"] = (a.get("alt") or "").strip()
+                self.open["name"] = fix_text(a.get("alt") or "").strip()
             if "tphoto_" not in self.open["href"]:
                 self.open["href"] = a.get("src") or self.open["href"]
 
@@ -88,15 +88,17 @@ class ListParser(HTMLParser):
             self.open = None
 
 
-def decode(raw, header_charset):
-    """The site is Japanese and has served more than one encoding; trust the declared one, then guess."""
-    meta = re.search(rb'charset=["\']?([\w-]+)', raw[:4000], re.I)
-    for enc in [header_charset, meta and meta.group(1).decode("ascii", "ignore"), "utf-8", "cp932", "euc_jp"]:
-        if not enc:
-            continue
+def fix_text(s):
+    """Pages are read as latin-1 so no byte is lost, then each name is decoded on its own:
+    the site has served pages whose markup and item names use different encodings."""
+    try:
+        raw = s.encode("latin-1")
+    except UnicodeEncodeError:  # an HTML entity already produced real characters
+        return s
+    for enc in ("utf-8", "cp932", "euc_jp"):
         try:
             return raw.decode(enc)
-        except (LookupError, UnicodeDecodeError):
+        except UnicodeDecodeError:
             pass
     return raw.decode("utf-8", "replace")
 
@@ -104,7 +106,7 @@ def decode(raw, header_charset):
 def fetch(url):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (self-owned-tools catalog refresh)"})
     with urllib.request.urlopen(req, timeout=20) as r:
-        return decode(r.read(), r.headers.get_content_charset())
+        return r.read().decode("latin-1")
 
 
 def crawl():
@@ -134,6 +136,8 @@ def write_catalog(cat):
 
 def main():
     cat = json.loads(CATALOG.read_text(encoding="utf-8"))
+    # Drop crawled names that failed to decode so this run adds them again.
+    cat["items"] = [i for i in cat["items"] if not (i.get("added") and "\ufffd" in i["name"])]
     known = {i["id"] for i in cat["items"]}
     added = []
     for raw in crawl():
