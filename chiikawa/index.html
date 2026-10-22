@@ -119,6 +119,12 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
 .hint{font-size:12px;color:var(--muted);margin:0}
 #s-qr svg{width:220px;height:220px;display:block;margin:0 auto;background:#fff}
 #s-cam{width:100%;border-radius:12px}
+.ro-banner{margin:12px 0 0;padding:10px 14px;border-radius:12px;background:var(--accent-soft);font-size:14px}
+.ro .card:not(.own) .pic img{opacity:1;filter:none}
+.ro #syncBtn,.ro .menuwrap,.ro .card .acts,.ro #d-st,.ro #itemDlg .two,.ro #d-note-l,.ro #d-save,.ro #d-del{display:none!important}
+.badge.want{left:auto;right:6px;background:var(--paper);color:var(--want);border:1px solid var(--want)}
+#shareLink{width:100%;font-size:13px}
+#shareQr svg{width:min(260px,70vw);height:auto;display:block;margin:0 auto;background:#fff;border-radius:8px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:999px;font-size:13px;z-index:50}
 </style>
 </head>
@@ -132,12 +138,14 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
       <button class="iconbtn" id="menuBtn" title="更多" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
       <div id="menu" hidden>
         <button id="m-add">新增商品…</button>
+        <button id="m-share">分享給朋友…</button>
         <button id="m-sync">雲端同步…</button>
         <button id="m-export">匯出備份</button>
         <button id="m-import">匯入備份</button>
       </div>
     </div>
   </header>
+  <p class="ro-banner" id="roBanner" hidden></p>
   <div class="progress"><i id="bar"></i></div>
   <div class="stats" id="stats"></div>
 
@@ -174,7 +182,7 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
       <label>取得日期<input id="d-date" type="date"></label>
       <label>價格<input id="d-price" placeholder="例如：¥770"></label>
     </div>
-    <label>備註<textarea id="d-note" rows="2" placeholder="在哪買、託誰代購…"></textarea></label>
+    <label id="d-note-l">備註<textarea id="d-note" rows="2" placeholder="在哪買、託誰代購…"></textarea></label>
     <div class="acts2">
       <button type="button" class="btn danger" id="d-del" hidden>刪除</button>
       <button type="button" class="btn" data-close>取消</button>
@@ -183,6 +191,20 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
   </form>
 </dialog>
 <datalist id="locList"></datalist>
+
+<dialog id="shareDlg">
+  <form novalidate>
+    <h3>分享給朋友</h3>
+    <p class="hint">讓朋友用手機相機掃 QR code，或把連結傳給他們。打開後是唯讀的清單，預設列出你還沒有的鐵牌，♡ 是你特別想要的。連結裡只有「有／想要」的紀錄，沒有金鑰。這是現在的快照，之後買到新的再傳一次新連結就好。</p>
+    <div id="shareQr"></div>
+    <input id="shareLink" readonly>
+    <div class="acts2">
+      <button type="button" class="btn" data-close>關閉</button>
+      <button type="button" class="btn" id="shareSys" hidden>分享…</button>
+      <button type="button" class="btn primary" id="shareCopy">複製連結</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="syncDlg">
   <form novalidate>
@@ -246,9 +268,30 @@ let user={items:[],custom:[]};
 try{const d=JSON.parse(ls.get(DATA_KEY)||"null");if(d){user.items=d.items||[];user.custom=d.custom||[]}}catch(e){}
 let view={st:"all",cat:"keyholder",reg:"all",loc:"",mode:"list",q:""};
 try{Object.assign(view,JSON.parse(ls.get(VIEW_KEY)||"{}"),{q:"",loc:""})}catch(e){}
+
+/* ---------- share link: a read-only snapshot of owned/wanted ids in the URL fragment ---------- */
+// Ids are sorted, delta-encoded and written in base36, so a few hundred items still fit in a chat message.
+const encIds=ids=>{let prev=0;return ids.map(Number).sort((a,b)=>a-b).map(n=>{const d=n-prev;prev=n;return d.toString(36)}).join(".")};
+const decIds=s=>{let prev=0;return s?s.split(".").map(x=>String(prev+=parseInt(x,36))):[]};
+function shareLink(){
+  const ids=st=>user.items.filter(u=>u.st===st&&/^\d+$/.test(u.id)).map(u=>u.id);
+  return SETUP_URL+"#share=1~"+today().replace(/-/g,"")+"~"+encIds(ids("own"))+"~"+encIds(ids("want"));
+}
+let shared=null;
+{const m=/#share=1~(\d{8})~([0-9a-z.]*)~([0-9a-z.]*)/.exec(location.hash);
+  if(m)shared={date:m[1].replace(/(\d{4})(\d\d)(\d\d)/,"$1-$2-$3"),own:decIds(m[2]),want:decIds(m[3])}}
+const RO=!!shared;
+if(RO){
+  user={items:[...shared.own.map(id=>({id,st:"own"})),...shared.want.map(id=>({id,st:"want"}))],custom:[]};
+  view={st:"none",cat:"keyholder",reg:"all",loc:"",mode:"list",q:""};
+  document.documentElement.classList.add("ro");
+  document.title="朋友的吉伊卡哇收集清單";
+  $("#roBanner").hidden=false;
+  $("#roBanner").textContent=`這是朋友的吉伊卡哇地區限定收集清單（${shared.date} 的狀態，唯讀）。現在列出還沒收集到的鐵牌，標 ♡ 的是特別想要的。`;
+}
 const uid=()=>"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
-function persist(){ls.set(DATA_KEY,JSON.stringify({items:user.items,custom:user.custom,savedAt:new Date().toISOString()}));scheduleSync()}
+function persist(){if(RO)return;ls.set(DATA_KEY,JSON.stringify({items:user.items,custom:user.custom,savedAt:new Date().toISOString()}));scheduleSync()}
 const uMap=()=>new Map(user.items.map(u=>[u.id,u]));
 function allItems(){
   const um=uMap();
@@ -318,7 +361,7 @@ function chip(v,label,arr,cur,kind){
 function pic(it){return it.img?`<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'🎁'}))">`:`<span class="ph">🎁</span>`}
 function card(it){
   return `<div class="card${it.st==="own"?" own":""}" data-id="${esc(it.id)}">
-    ${isNew(it)?`<span class="badge">新</span>`:""}${it.note||it.price?`<span class="badge note">✎</span>`:""}
+    ${isNew(it)?`<span class="badge">新</span>`:""}${RO?(it.st==="want"?`<span class="badge want">♡ 想要</span>`:""):it.note||it.price?`<span class="badge note">✎</span>`:""}
     <button class="pic" data-open title="詳細">${pic(it)}</button>
     <div class="body"><div class="nm">${esc(it.name)}</div>
     <div class="meta">${esc(CATS[it.cat]||"")}${it.date?" · "+esc(it.date):""}</div>
@@ -342,7 +385,7 @@ document.addEventListener("click",e=>{
 $("#modeSeg").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.mode=b.dataset.v;saveView();render()};
 $("#stFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;saveView();render()};
 let qTimer;$("#q").oninput=e=>{clearTimeout(qTimer);qTimer=setTimeout(()=>{view.q=e.target.value;render()},150)};
-function saveView(){ls.set(VIEW_KEY,JSON.stringify({st:view.st,cat:view.cat,reg:view.reg,mode:view.mode}))}
+function saveView(){if(RO)return;ls.set(VIEW_KEY,JSON.stringify({st:view.st,cat:view.cat,reg:view.reg,mode:view.mode}))}
 
 const menu=$("#menu"),showMenu=v=>{menu.hidden=!v;$("#menuBtn").setAttribute("aria-expanded",v)};
 $("#menuBtn").onclick=e=>{e.stopPropagation();showMenu(menu.hidden)};
@@ -449,6 +492,16 @@ $("#d-del").onclick=()=>{
   persist();$("#itemDlg").close();render();toast("已刪除");
 };
 $("#m-add").onclick=()=>openItem(null);
+$("#m-share").onclick=async()=>{
+  const link=shareLink();
+  $("#shareLink").value=link;$("#shareSys").hidden=!navigator.share;$("#shareQr").innerHTML="";$("#shareDlg").showModal();
+  if(!window.qrcode)await loadScript("qrcode.min.js").catch(()=>{});
+  if(window.qrcode){const q=qrcode(0,"L");q.addData(link);q.make();$("#shareQr").innerHTML=q.createSvgTag({cellSize:4,margin:4,scalable:true})}
+};
+$("#shareCopy").onclick=async()=>{
+  try{await navigator.clipboard.writeText($("#shareLink").value);toast("已複製連結")}catch(e){$("#shareLink").select();document.execCommand("copy");toast("已複製連結")}
+};
+$("#shareSys").onclick=()=>navigator.share({title:"我的吉伊卡哇收集清單",url:$("#shareLink").value}).catch(()=>{});
 
 /* ---------- backup ---------- */
 $("#m-export").onclick=()=>{
@@ -507,9 +560,9 @@ function setSyncUI(state){
   b.title=!syncCfg?"雲端同步：尚未設定":state==="busy"?"同步中…":state==="err"?"同步失敗："+syncErr:"已同步"+(lastSync?"（"+new Date(lastSync).toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})+"）":"");
   $("#syncState").textContent=!syncCfg?"尚未設定。":state==="busy"?"同步中…":state==="err"?"⚠ "+syncErr:"✓ "+b.title;
 }
-function scheduleSync(ms){if(!syncCfg)return;clearTimeout(syncTimer);syncTimer=setTimeout(syncNow,ms??1500)}
+function scheduleSync(ms){if(!syncCfg||RO)return;clearTimeout(syncTimer);syncTimer=setTimeout(syncNow,ms??1500)}
 async function syncNow(){
-  if(!syncCfg)return;
+  if(!syncCfg||RO)return;
   if(syncBusy){syncAgain=true;return}
   syncBusy=true;setSyncUI("busy");
   try{
@@ -550,7 +603,7 @@ function importSetup(text){
   useCfg(cfg);syncNow().then(()=>toast(syncErr?"同步失敗："+syncErr:"已開啟同步"));
   return true;
 }
-if(/^#sync=/.test(location.hash)){importSetup(location.hash);history.replaceState(null,"",location.pathname+location.search)}
+if(!RO&&/^#sync=/.test(location.hash)){importSetup(location.hash);history.replaceState(null,"",location.pathname+location.search)}
 function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
 async function showQR(){
   const box=$("#s-qrbox");if(!box.hidden){box.hidden=true;$("#s-qr").innerHTML="";return}
@@ -601,7 +654,7 @@ try{const c=JSON.parse(ls.get(CAT_KEY)||"null");if(c)useCatalog(c)}catch(e){}
 $("#q").value="";render();setSyncUI("ok");
 fetch("catalog.json",{cache:"no-cache"}).then(r=>r.ok?r.json():Promise.reject()).then(c=>{useCatalog(c);ls.set(CAT_KEY,JSON.stringify(c));render()})
   .catch(()=>{if(!catalog.length)toast("商品目錄載入失敗")});
-if(syncCfg)syncNow();
+if(syncCfg&&!RO)syncNow();
 setInterval(()=>{if(document.visibilityState==="visible")scheduleSync(0)},60000);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){readCfg();scheduleSync(0)}});
 </script>
