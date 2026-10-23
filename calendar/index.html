@@ -82,6 +82,9 @@ button,select,input,textarea{font:inherit;color:inherit}
 
 .rail{display:flex;flex-direction:column;gap:14px}
 .rail h3{margin:0 0 8px;font-size:13px;letter-spacing:.08em;color:var(--muted);font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.rail h3 .rail-seg{letter-spacing:0;gap:4px;flex-wrap:nowrap}
+.rail h3 .rail-seg button{padding:2px 10px;font-size:12px;font-weight:700}
+.late-tag{color:var(--bad);font-weight:700}
 .list{display:flex;flex-direction:column;gap:8px}
 .ev{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;border-left:4px solid var(--c);padding:6px 8px;background:var(--bg);border-radius:0 8px 8px 0}
 .ev .when{font-family:var(--font-mono);font-size:12px;font-weight:600;min-width:52px;color:var(--c);text-align:center}
@@ -308,7 +311,7 @@ dialog{max-height:calc(100vh - 60px)}
       </div>
       <div class="rail">
         <div class="panel">
-          <h3><span id="selLabel">選取的日期</span></h3>
+          <h3><span id="selLabel">選取的日期</span><span class="filters rail-seg" id="railSeg"><button type="button" data-rail="ev">活動</button><button type="button" data-rail="pick">取貨</button></span></h3>
           <div class="list" id="dayList"></div>
         </div>
         <div class="panel">
@@ -463,6 +466,7 @@ const dayDiff=s=>Math.round((parse(s)-parse(today))/864e5);
 let events=[],orders=[],news=[],db=true;
 let cur=parse(today);cur.setDate(1);
 let sel=today,pickFilter="全部",showArch=false,showArchEv=false;
+let railMode="ev";try{if(localStorage.getItem("rail-mode")==="pick")railMode="pick"}catch(e){}
 
 function paintToday(){$("#todayLabel").textContent=today.replaceAll("-",".")+" · "+DOW[parse(today).getDay()]}
 paintToday();
@@ -509,9 +513,11 @@ function evRow(e,showDate){
       <div class="meta">${[esc(e.note||"")].filter(Boolean).join(" · ")}</div>${linksHtml(e.links)}
       <div class="icons"><button class="ico ok${e.done?" on":""}" data-toggle-ev="${e.id}" title="${e.done?"取消完成":"標記完成"}" aria-label="${e.done?"取消完成":"標記完成"}"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>${e.done&&showDate?`<button class="ico" data-arch-ev="${e.id}" title="${e.archived?"取消封存":"封存"}" aria-label="${e.archived?"取消封存":"封存"}"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg></button>`:""}<button class="ico" data-edit-ev="${e.id}" title="編輯" aria-label="編輯"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></button><button class="ico" data-copy-ev="${e.id}" title="複製" aria-label="複製"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></button></div></div></div>`;
 }
-function shipRow(o){
+function shipRow(o,withDate){
+  const dd=withDate&&o.etaDate?dayDiff(o.etaDate):null;
+  const due=dd==null?"":`<div class="meta">預計 ${md(o.etaDate)}（${DOW[parse(o.etaDate).getDay()]}）${dd<0?` · <span class="late-tag">已過 ${-dd} 天</span>`:dd===0?" · 今天":""}</div>`;
   return `<div class="ev" style="--c:var(--c-ship)"><div class="when">📦<b>${esc(o.pickup||"")}</b></div>
-    <div style="min-width:0"><div class="t ship-t"><span>${esc(o.shop)}</span><span class="ship-pay">${o.amount!=null&&o.amount!==""?`<span class="amt"><small>NT$</small>${Number(o.amount).toLocaleString()}</span>`:""}<span class="pill ${payCls(o.payment)}">${esc(o.payment||"未付")}</span></span></div><div class="meta">${esc(o.items)}</div>
+    <div style="min-width:0"><div class="t ship-t"><span>${esc(o.shop)}</span><span class="ship-pay">${o.amount!=null&&o.amount!==""?`<span class="amt"><small>NT$</small>${Number(o.amount).toLocaleString()}</span>`:""}<span class="pill ${payCls(o.payment)}">${esc(o.payment||"未付")}</span></span></div><div class="meta">${esc(o.items)}</div>${due}
     <div class="meta">${esc(o.etaText||"")}</div>
     <div class="icons"><button class="ico ok" data-adv="${o.id}" title="${o.stage==="待出貨"?"已出貨":"已取貨"}" aria-label="${o.stage==="待出貨"?"已出貨":"已取貨"}"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><button class="ico" data-edit-ord="${o.id}" title="編輯" aria-label="編輯" style="order:2"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></button><button class="ico" data-copy-ord="${o.id}" title="複製" aria-label="複製" style="order:1"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></button></div></div></div>`;
 }
@@ -521,12 +527,22 @@ function renderRail(){
   const evs=events.filter(e=>evCovers(e,sel)).sort(sortEv);
   const ships=orders.filter(o=>o.etaDate===sel&&o.stage!=="已完成");
   const doneSplit=(list,show)=>{const a=list.filter(e=>!e.done),b=list.filter(e=>e.done);return a.map(show).join("")+(b.length?`<div class="done-sep">已完成（${b.length}）</div>`+b.map(show).join(""):"")};
-  $("#dayList").innerHTML=(evs.filter(e=>!e.done).map(e=>evRow(e,false)).join("")+ships.map(shipRow).join(""))||`<div class="empty">這天沒有安排。按「＋ 活動」加一筆。</div>`;
+  document.querySelectorAll("#railSeg [data-rail]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.rail===railMode));
+  if(railMode==="pick"){
+    /* every open order that is due (or overdue) and not picked up yet, oldest first */
+    const picks=orders.filter(o=>o.stage!=="已完成"&&!o.archived&&((o.etaDate&&o.etaDate<=today)||(o.stage==="待取貨"&&!o.etaDate)))
+      .sort((a,b)=>(a.etaDate||"9999").localeCompare(b.etaDate||"9999"));
+    $("#selLabel").textContent=`還沒取貨（${picks.length}）`;
+    $("#dayList").innerHTML=picks.map(o=>shipRow(o,true)).join("")||`<div class="empty">沒有要取的貨。</div>`;
+  }else
+  $("#dayList").innerHTML=(evs.filter(e=>!e.done).map(e=>evRow(e,false)).join("")+ships.map(o=>shipRow(o)).join(""))||`<div class="empty">這天沒有安排。按「＋ 活動」加一筆。</div>`;
   const up=monthEvents();
   $("#monthEvTitle").textContent=`${cur.getMonth()+1} 月的活動（${up.filter(e=>!e.done).length}）`;
   const upArch=up.filter(e=>e.done&&e.archived);
   $("#upList").innerHTML=(doneSplit(up.filter(e=>!(e.done&&e.archived)),e=>evRow(e,true))+(upArch.length?`<button class="arch-tg" data-arch-ev-tg="1">${showArchEv?"收起":"顯示"}已封存（${upArch.length}）</button>${showArchEv?upArch.map(e=>evRow(e,true)).join(""):""}`:""))||`<div class="empty">${cur.getMonth()+1} 月沒有活動。</div>`;
 }
+
+$("#railSeg").addEventListener("click",ev=>{const b=ev.target.closest("[data-rail]");if(!b)return;railMode=b.dataset.rail;try{localStorage.setItem("rail-mode",railMode)}catch(e){}renderRail()});
 
 /* ---------- orders ---------- */
 function payCls(p){return p==="已付"?"paid":p==="需補款"?"partial":"unpaid"}
@@ -630,7 +646,7 @@ $("#todayBtn").onclick=goToday;
 $("#nPrevM").onclick=()=>goMonth(-1);
 $("#nNextM").onclick=()=>goMonth(1);
 $("#nThisM").onclick=goToday;
-$("#days").onclick=e=>{const b=e.target.closest("[data-day]");if(!b)return;sel=b.dataset.day;const d=parse(sel);if(d.getMonth()!==cur.getMonth()){cur=new Date(d.getFullYear(),d.getMonth(),1)}renderCal()};
+$("#days").onclick=e=>{const b=e.target.closest("[data-day]");if(!b)return;sel=b.dataset.day;railMode="ev";const d=parse(sel);if(d.getMonth()!==cur.getMonth()){cur=new Date(d.getFullYear(),d.getMonth(),1)}renderCal()};
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>b.closest("dialog").close());
 
 document.addEventListener("click",async e=>{
