@@ -15,7 +15,7 @@
 :root{
   --bg:#f2f3f7; --paper:#ffffff; --ink:#1d2140; --muted:#666b88; --line:#dcdeea;
   --accent:#e2477a; --accent-soft:#fde6ee;
-  --c-book:#2f6fdb; --c-new:#1f9d74; --c-lot:#c47a0a; --c-pop:#e2477a; --c-other:#7a6fd0; --c-trip:#5f8a14; --c-med:#0b8f9c; --c-ship:#5a6078;
+  --c-book:#2f6fdb; --c-new:#1f9d74; --c-lot:#c47a0a; --c-pop:#e2477a; --c-other:#7a6fd0; --c-trip:#5f8a14; --c-med:#0b8f9c; --c-meet:#d4550f; --c-ship:#5a6078;
   --ok:#1f9d74; --warn:#c47a0a; --bad:#d23b3b;
   --font-display:"Noto Sans TC",system-ui,sans-serif; --font-body:"Noto Sans TC",system-ui,sans-serif;
   --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -23,12 +23,12 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#13152a; --paper:#1c1f38; --ink:#eceefa; --muted:#a2a6c4; --line:#2e3252;
   --accent:#ff6f9c; --accent-soft:#3a2036;
-  --c-book:#6d9cff; --c-new:#45c79c; --c-lot:#f0a840; --c-pop:#ff6f9c; --c-other:#a99cff; --c-trip:#a6d45a; --c-med:#4fd3df; --c-ship:#9aa0bd;
+  --c-book:#6d9cff; --c-new:#45c79c; --c-lot:#f0a840; --c-pop:#ff6f9c; --c-other:#a99cff; --c-trip:#a6d45a; --c-med:#4fd3df; --c-meet:#ff7d3b; --c-ship:#9aa0bd;
   --ok:#45c79c; --warn:#f0a840; --bad:#ff7070; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#13152a; --paper:#1c1f38; --ink:#eceefa; --muted:#a2a6c4; --line:#2e3252;
   --accent:#ff6f9c; --accent-soft:#3a2036;
-  --c-book:#6d9cff; --c-new:#45c79c; --c-lot:#f0a840; --c-pop:#ff6f9c; --c-other:#a99cff; --c-trip:#a6d45a; --c-med:#4fd3df; --c-ship:#9aa0bd;
+  --c-book:#6d9cff; --c-new:#45c79c; --c-lot:#f0a840; --c-pop:#ff6f9c; --c-other:#a99cff; --c-trip:#a6d45a; --c-med:#4fd3df; --c-meet:#ff7d3b; --c-ship:#9aa0bd;
   --ok:#45c79c; --warn:#f0a840; --bad:#ff7070; color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55;
@@ -451,7 +451,7 @@ if(!window.desk){
 <script>
 (function(){
 if(window.desk.info().web)document.body.classList.add("web");
-const TYPES={"預約":"--c-book","新品":"--c-new","抽選公布":"--c-lot","快閃店":"--c-pop","旅遊":"--c-trip","醫院":"--c-med","其他":"--c-other"};
+const TYPES={"預約":"--c-book","新品":"--c-new","抽選公布":"--c-lot","快閃店":"--c-pop","旅遊":"--c-trip","醫院":"--c-med","面交":"--c-meet","其他":"--c-other"};
 const STAGES=["待取貨","待出貨","已完成"];
 const DOW=["日","一","二","三","四","五","六"];
 const $=s=>document.querySelector(s);
