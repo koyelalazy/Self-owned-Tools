@@ -103,6 +103,7 @@ body.synced .icon.ok{border-color:var(--ok);color:var(--ok)}
 }
 .info{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
 .lnk{color:var(--accent);font-weight:700;text-decoration:none;white-space:nowrap}
+.info .bt{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.info .bt a{border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700;color:var(--accent);text-decoration:none;background:var(--bg)}
 .info b{display:block}.info p{margin:2px 0;font-size:14px}.info p.red{color:var(--bad);font-weight:700}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 dialog{border:1px solid var(--line);border-radius:16px;background:var(--paper);color:var(--ink);padding:16px;width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 24px)}
@@ -157,6 +158,8 @@ dialog textarea{min-height:90px;resize:vertical}
   <label id="t-l1">標題<input id="t-title"></label>
   <label>內容<textarea id="t-body"></textarea></label>
   <p class="hint" id="t-hint"></p>
+  <div id="t-urls" hidden><label>地圖連結<input id="t-map" type="url" placeholder="https://maps.app.goo.gl/…"></label>
+  <label>訂位資訊連結<input id="t-link" type="url" placeholder="訂位確認信、訂房網頁…"></label></div>
   <div class="acts"><button type="button" class="btn danger" id="t-del">刪除</button><span class="sp"></span><button type="button" class="btn" id="t-cancel">取消</button><button class="btn primary" id="t-save">儲存</button></div>
 </form></dialog>
 
@@ -185,6 +188,7 @@ dialog textarea{min-height:90px;resize:vertical}
 <script>
 (function(){
 const $=s=>document.querySelector(s);
+const okUrl=u=>/^https?:\/\//i.test(u||"")?u:"";
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pad=n=>String(n).padStart(2,"0");
 const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
@@ -259,7 +263,7 @@ function renderOverview(t){
   return h;
 }
 function renderInfo(t){
-  return '<div class="tl">'+(t.info||[]).map((b,i)=>`<div class="info" data-info="${i}"><b>${esc(b.title)}</b>${b.lines.map(l=>`<p class="${l.red?"red":""}">${lt(l.t)}</p>`).join("")}</div>`).join("")+
+  return '<div class="tl">'+(t.info||[]).map((b,i)=>`<div class="info" data-info="${i}"><b>${esc(b.title)}</b>${b.lines.map(l=>`<p class="${l.red?"red":""}">${lt(l.t)}</p>`).join("")}${(b=Object.assign({},b,{map:okUrl(b.map),link:okUrl(b.link)})).map||b.link?'<div class="bt">'+(b.map?`<a href="${esc(b.map)}" target="_blank" rel="noopener" data-stop>📍 地圖</a>`:"")+(b.link?`<a href="${esc(b.link)}" target="_blank" rel="noopener" data-stop>🔖 訂位資訊</a>`:"")+"</div>":""}</div>`).join("")+
     '<button class="btn add" data-act="addinfo">＋ 新增資訊</button></div>';
 }
 function renderDay(t,di,today){
@@ -339,8 +343,8 @@ $("#f-cancel").onclick=()=>$("#itemDlg").close();
 
 /* generic text dialog for overview cells and info blocks */
 let textSave=null,textDel=null;
-function openText({h,title,body,hint,showTitle,onSave,onDel}){
-  $("#t-h").textContent=h;$("#t-l1").hidden=!showTitle;$("#t-title").value=title||"";$("#t-body").value=body||"";$("#t-hint").textContent=hint||"";
+function openText({h,title,body,hint,showTitle,urls,onSave,onDel}){
+  $("#t-h").textContent=h;$("#t-urls").hidden=!urls;$("#t-map").value=urls?.map||"";$("#t-link").value=urls?.link||"";$("#t-l1").hidden=!showTitle;$("#t-title").value=title||"";$("#t-body").value=body||"";$("#t-hint").textContent=hint||"";
   textSave=onSave;textDel=onDel;$("#t-del").hidden=!onDel;$("#textDlg").showModal();
 }
 $("#t-save").onclick=ev=>{ev.preventDefault();if(textSave(($("#t-title").value||"").trim(),$("#t-body").value)===false)return;persist();$("#textDlg").close();render()};
@@ -355,8 +359,10 @@ function openOv(r,c){
 }
 function openInfo(i){
   const t=curTrip();t.info=t.info||[];const b=i>=0?t.info[i]:null;
-  openText({h:b?"編輯資訊":"新增資訊",showTitle:true,title:b?.title,body:linesToText(b?.lines),hint:"一行一點，開頭加 ! 會變紅色；貼上網址會變成可以點的連結",
-    onSave:(ti,body)=>{if(!ti){toast("請填標題");return false}const nb={title:ti,lines:textToLines(body)};if(b)t.info[i]=nb;else t.info.push(nb)},
+  openText({h:b?"編輯資訊":"新增資訊",showTitle:true,title:b?.title,body:linesToText(b?.lines),urls:b||{},hint:"一行一點，開頭加 ! 會變紅色",
+    onSave:(ti,body)=>{if(!ti){toast("請填標題");return false}
+      const nb={title:ti,lines:textToLines(body)},map=$("#t-map").value.trim(),link=$("#t-link").value.trim();
+      if(map)nb.map=map;if(link)nb.link=link;if(b)t.info[i]=nb;else t.info.push(nb)},
     onDel:b?()=>t.info.splice(i,1):null});
 }
 
