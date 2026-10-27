@@ -401,14 +401,34 @@ async function gh(method,body){
   if(!r.ok){const e=new Error(r.status===401?"金鑰無效或過期":r.status===403?"金鑰沒有這個儲存庫的權限":r.status===404?"找不到儲存庫":r.status===409||r.status===422?"conflict":"GitHub 回應 "+r.status);e.status=r.status;throw e}
   return r.json();
 }
-/* three-way merge by trip id: a trip changed on one side wins; changed on both, this device wins */
+/* three-way merge, field by field: an edit on one side wins; edited on both, this device wins.
+   Arrays of objects are matched by id (days by date), so edits to different items both survive. */
+const keyOf=x=>x&&typeof x==="object"?(x.id??x.date):undefined;
+const isObj=x=>x&&typeof x==="object"&&!Array.isArray(x);
+function merge3(b,l,r){
+  if(same(l,r))return l;
+  if(same(l,b))return r;
+  if(same(r,b))return l;
+  if(Array.isArray(l)&&Array.isArray(r)&&[...l,...r].every(x=>keyOf(x)!==undefined))return mergeColl(Array.isArray(b)?b:[],l,r);
+  if(isObj(l)&&isObj(r)){
+    const B=isObj(b)?b:{},out={};
+    for(const k of new Set([...Object.keys(l),...Object.keys(r)])){
+      const inL=k in l,inR=k in r,inB=k in B;
+      if(inL&&inR)out[k]=merge3(B[k],l[k],r[k]);
+      else if(inL){if(!inB||!same(l[k],B[k]))out[k]=l[k]}
+      else if(!inB||!same(r[k],B[k]))out[k]=r[k];
+    }
+    return out;
+  }
+  return l;
+}
 function mergeColl(b,l,r){
-  const M=a=>new Map((a||[]).map(x=>[x.id,x])),B=M(b),L=M(l),R=M(r);
-  const order=[...l,...r].map(x=>x.id).filter((id,i,a)=>a.indexOf(id)===i),out=[];
+  const M=a=>new Map((a||[]).map(x=>[keyOf(x),x])),B=M(b),L=M(l),R=M(r);
+  const order=[...l,...r].map(keyOf).filter((id,i,a)=>a.indexOf(id)===i),out=[];
   for(const id of order){
     const inB=B.has(id),inL=L.has(id),inR=R.has(id);
     const chL=inL&&(!inB||!same(L.get(id),B.get(id))),chR=inR&&(!inB||!same(R.get(id),B.get(id)));
-    if(inL&&inR)out.push(chL?L.get(id):R.get(id));
+    if(inL&&inR)out.push(merge3(B.get(id),L.get(id),R.get(id)));
     else if(inL){if(!inB||chL)out.push(L.get(id))}
     else if(inR){if(!inB||chR)out.push(R.get(id))}
   }
