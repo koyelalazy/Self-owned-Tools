@@ -75,6 +75,12 @@ body.synced .icon.ok{border-color:var(--ok);color:var(--ok)}
 .it.done .card{opacity:.5}.it.done .chk{background:var(--ok);border-color:var(--ok);color:#fff}.it.done .chk svg{opacity:1}
 .it.next .tm{color:var(--accent)}.it.next .card{box-shadow:0 0 0 2px var(--accent)}
 .add{align-self:flex-start}
+.whopick{display:flex;gap:6px}
+.whopick button{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:4px 14px;font-weight:700;font-size:13px;color:var(--muted);cursor:pointer}
+.whopick button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.who{font-size:11px;font-weight:900;border-radius:999px;padding:0 8px;color:#fff;flex:none}
+.who.a{background:var(--accent)}.who.b{background:#2f6fdb}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .who.b{background:#4a7fe0}}
 .ov{display:flex;flex-direction:column;gap:10px}
 .ovrow{background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .ovrow h3{margin:0;font-size:13px;padding:6px 12px;background:var(--bg);border-bottom:1px solid var(--line)}
@@ -132,6 +138,7 @@ dialog textarea{min-height:90px;resize:vertical}
     <label>種類<select id="f-kind"><option value="spot">景點/逛街</option><option value="meal">餐飲</option><option value="move">交通</option></select></label>
     <label>時間<input id="f-time" placeholder="13:00"></label>
   </div>
+  <label id="f-wholab">誰<select id="f-who"></select></label>
   <div class="grid2">
     <label>分類<input id="f-cat" placeholder="景點、午餐、GoShare…"></label>
     <label>標記<input id="f-tag" placeholder="必去、已訂位…"></label>
@@ -158,6 +165,7 @@ dialog textarea{min-height:90px;resize:vertical}
   <div class="grid2"><label>出發<input id="tr-start" type="date" required></label><label>回來<input id="tr-end" type="date" required></label></div>
   <label>城市（地圖搜尋用）<input id="tr-city" placeholder="台中"></label>
   <label>一句話說明<input id="tr-sum"></label>
+  <label>兩個人分開行動時的稱呼（用逗號分開，不需要就留空）<input id="tr-people" placeholder="我,跑者"></label>
   <div class="acts"><button type="button" class="btn danger" id="tr-del">刪除行程</button><span class="sp"></span><button type="button" class="btn" id="tr-cancel">取消</button><button class="btn primary" id="tr-save">儲存</button></div>
 </form></dialog>
 
@@ -252,16 +260,21 @@ function renderInfo(t){
 }
 function renderDay(t,di,today){
   const d=t.days[di];let next=-1;
-  if(d.date===today){const now=new Date().getHours()*60+new Date().getMinutes();next=d.items.findIndex(it=>!it.done&&(mins(it.time)??9999)>=now-30)}
+  const ppl=t.people?.length===2?t.people:null,split=ppl&&d.items.some(it=>it.who);
+  let who=split?ls.get("trip-who-"+t.id)||"":"";if(who&&who!=="a"&&who!=="b")who="";
+  const shown=it=>!who||!it.who||it.who===who;
+  if(d.date===today){const now=new Date().getHours()*60+new Date().getMinutes();next=d.items.findIndex(it=>shown(it)&&!it.done&&(mins(it.time)??9999)>=now-30)}
   let h='<div class="tl">';
   if(d.notes?.length)h+='<div class="dnote">'+d.notes.map(n=>`<span>${esc(n)}</span>`).join("")+"</div>";
+  if(split)h+='<div class="whopick">'+[["","全部"],["a",ppl[0]],["b",ppl[1]]].map(([k,l])=>`<button data-who="${k}" aria-pressed="${who===k}">${esc(l)}${k?"的行程":""}</button>`).join("")+"</div>";
   d.items.forEach((it,i)=>{
+    if(!shown(it))return;
     const ttl=it.kind==="move"?esc(it.from)+" → "+esc(it.to):esc(it.title);
     const route=it.kind==="move"?[it.via,it.dur].filter(Boolean).map(esc).join("・"):"";
     const map=it.kind==="move"?`<a href="${dirUrl(it.to,t.city)}" target="_blank" rel="noopener" data-stop>導航</a>`:`<a href="${mapUrl(it.title,t.city)}" target="_blank" rel="noopener" data-stop>地圖</a>`;
     h+=`<div class="it ${it.done?"done":""} ${i===next?"next":""}"><div class="tm">${esc(it.time)}</div>
       <div class="card ${it.kind}" data-item="${i}"><button class="chk" data-chk="${i}" aria-label="完成">${ICON_CHK}</button>
-      <div class="top">${it.cat?`<span class="cat">${esc(it.cat)}</span>`:""}<span class="ttl">${ttl}</span>${it.tag?`<span class="tag">${esc(it.tag)}</span>`:""}</div>
+      <div class="top">${ppl&&it.who?`<span class="who ${it.who}">${esc(ppl[it.who==="a"?0:1])}</span>`:""}${it.cat?`<span class="cat">${esc(it.cat)}</span>`:""}<span class="ttl">${ttl}</span>${it.tag?`<span class="tag">${esc(it.tag)}</span>`:""}</div>
       ${route?`<div class="route">${route}</div>`:""}
       ${it.lines?.length?"<ul>"+it.lines.map(l=>`<li class="${l.red?"red":""}">${esc(l.t)}</li>`).join("")+"</ul>":""}
       <div class="ft">${map}${it.price?`<span class="price">${esc(it.price)}</span>`:""}</div></div></div>`;
@@ -277,6 +290,7 @@ $("#main").addEventListener("click",ev=>{
   const t=curTrip(),el=ev.target;
   const trip=el.closest("[data-trip]");if(trip)return go(trip.dataset.trip,null);
   if(el.closest("#newTrip"))return openTrip(null);
+  const wb=el.closest("[data-who]");if(wb){ls.set("trip-who-"+t.id,wb.dataset.who||null);render();return}
   const tab=el.closest("[data-tab]");if(tab){view.tab=tab.dataset.tab;ls.set("trip-view",JSON.stringify(view));render();return}
   const chk=el.closest("[data-chk]");if(chk){const it=t.days[+view.tab.slice(1)].items[+chk.dataset.chk];it.done=!it.done;persist();render();return}
   const card=el.closest("[data-item]");if(card)return openItem(+view.tab.slice(1),+card.dataset.item);
@@ -301,6 +315,8 @@ function openItem(di,ii){
   const it=ii>=0?curTrip().days[di].items[ii]:{kind:"spot",time:"",cat:"",title:"",tag:"",from:"",via:"",to:"",dur:"",lines:[],price:""};
   editing={di,ii};$("#itemH").textContent=ii>=0?"編輯":"新增項目";
   for(const k of ["kind","time","cat","tag","title","from","to","via","dur","price"])$("#f-"+k).value=it[k]||"";
+  const ppl=curTrip().people;$("#f-wholab").hidden=!(ppl?.length===2);
+  if(ppl?.length===2){$("#f-who").innerHTML=`<option value="">一起</option><option value="a">${esc(ppl[0])}</option><option value="b">${esc(ppl[1])}</option>`;$("#f-who").value=it.who||""}
   $("#f-lines").value=linesToText(it.lines);$("#f-del").hidden=ii<0;syncKind();$("#itemDlg").showModal();
 }
 $("#f-save").onclick=ev=>{
@@ -308,6 +324,7 @@ $("#f-save").onclick=ev=>{
   const prev=editing.ii>=0?day.items[editing.ii]:{id:uid(),done:false};
   const it={...prev,lines:textToLines($("#f-lines").value)};
   for(const k of ["kind","time","cat","tag","title","from","to","via","dur","price"])it[k]=$("#f-"+k).value.trim();
+  if(!$("#f-wholab").hidden){const w=$("#f-who").value;if(w)it.who=w;else delete it.who}
   if(it.kind==="move"){delete it.title;if(!it.from&&!it.to){toast("請填起點或終點");return}}
   else{for(const k of ["from","to","via","dur"])delete it[k];if(!it.title){toast("請填名稱");return}}
   if(editing.ii>=0)day.items[editing.ii]=it;else day.items.push(it);
@@ -343,7 +360,7 @@ function openInfo(i){
 let tripEditing=null;
 function openTrip(t){
   tripEditing=t;$("#tr-h").textContent=t?"編輯行程":"新增行程";
-  $("#tr-title").value=t?.title||"";$("#tr-start").value=t?.start||"";$("#tr-end").value=t?.end||"";$("#tr-city").value=t?.city||"";$("#tr-sum").value=t?.summary||"";
+  $("#tr-title").value=t?.title||"";$("#tr-start").value=t?.start||"";$("#tr-end").value=t?.end||"";$("#tr-city").value=t?.city||"";$("#tr-sum").value=t?.summary||"";$("#tr-people").value=(t?.people||[]).join(",");
   $("#tr-del").hidden=!t;$("#tripDlg").showModal();
 }
 $("#tr-save").onclick=ev=>{
@@ -358,6 +375,7 @@ $("#tr-save").onclick=ev=>{
   if(lost&&!confirm("有 "+lost+" 天的項目會被刪掉，確定嗎？"))return;
   t.days=dates.map(dt=>old.get(dt)||{date:dt,notes:[],items:[]});
   Object.assign(t,{title,start,end,city:$("#tr-city").value.trim(),summary:$("#tr-sum").value.trim()});
+  const ppl=$("#tr-people").value.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);if(ppl.length===2)t.people=ppl;else delete t.people;
   for(const row of t.overview)row.cells.length=dates.length;
   if(!tripEditing)trips.push(t);
   persist();$("#tripDlg").close();go(t.id,null);
