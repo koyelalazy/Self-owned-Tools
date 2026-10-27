@@ -102,6 +102,7 @@ body.synced .icon.ok{border-color:var(--ok);color:var(--ok)}
   .ovcells div:not(.sel),.ovcells i{display:none}
 }
 .info{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
+.lnk{color:var(--accent);font-weight:700;text-decoration:none;white-space:nowrap}
 .info b{display:block}.info p{margin:2px 0;font-size:14px}.info p.red{color:var(--bad);font-weight:700}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 dialog{border:1px solid var(--line);border-radius:16px;background:var(--paper);color:var(--ink);padding:16px;width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 24px)}
@@ -146,7 +147,7 @@ dialog textarea{min-height:90px;resize:vertical}
   <label class="nm">名稱<input id="f-title"></label>
   <div class="mv grid2"><label>起點<input id="f-from"></label><label>終點<input id="f-to"></label></div>
   <div class="mv grid2"><label>方式<input id="f-via"></label><label>時間<input id="f-dur" placeholder="約10 mins"></label></div>
-  <label>備註（一行一點，開頭加 ! 會變紅色）<textarea id="f-lines"></textarea></label>
+  <label>備註（一行一點，開頭加 ! 會變紅色，網址可以直接貼）<textarea id="f-lines"></textarea></label>
   <label>費用<input id="f-price" placeholder="NT$150"></label>
   <div class="acts"><button type="button" class="btn danger" id="f-del">刪除</button><span class="sp"></span><button type="button" class="btn" value="cancel" id="f-cancel">取消</button><button class="btn primary" id="f-save">儲存</button></div>
 </form></dialog>
@@ -191,6 +192,9 @@ const parse=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}
 const DOW=["日","一","二","三","四","五","六"];
 const md=s=>{const d=parse(s);return (d.getMonth()+1)+"/"+d.getDate()+"（"+DOW[d.getDay()]+"）"};
 const mins=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec((t||"").trim());return m?+m[1]*60+ +m[2]:null};
+/* text with any pasted http(s) links made clickable */
+const linkName=u=>{try{const h=new URL(u).hostname.replace(/^www\./,"");return /(^|\.)(maps\.app\.goo\.gl|goo\.gl|google\.[a-z.]+)$/.test(h)&&/map/.test(u)?"Google 地圖":h}catch(e){return "連結"}};
+const lt=s=>esc(s).replace(/https?:\/\/[^\s<>"']+/g,u=>`<a href="${u}" target="_blank" rel="noopener" data-stop class="lnk">${esc(linkName(u.replace(/&amp;/g,"&")))} ↗</a>`);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}};
 const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("on"),2600)};
@@ -255,7 +259,7 @@ function renderOverview(t){
   return h;
 }
 function renderInfo(t){
-  return '<div class="tl">'+(t.info||[]).map((b,i)=>`<div class="info" data-info="${i}"><b>${esc(b.title)}</b>${b.lines.map(l=>`<p class="${l.red?"red":""}">${esc(l.t)}</p>`).join("")}</div>`).join("")+
+  return '<div class="tl">'+(t.info||[]).map((b,i)=>`<div class="info" data-info="${i}"><b>${esc(b.title)}</b>${b.lines.map(l=>`<p class="${l.red?"red":""}">${lt(l.t)}</p>`).join("")}</div>`).join("")+
     '<button class="btn add" data-act="addinfo">＋ 新增資訊</button></div>';
 }
 function renderDay(t,di,today){
@@ -276,7 +280,7 @@ function renderDay(t,di,today){
       <div class="card ${it.kind}" data-item="${i}"><button class="chk" data-chk="${i}" aria-label="完成">${ICON_CHK}</button>
       <div class="top">${ppl&&it.who?`<span class="who ${it.who}">${esc(ppl[it.who==="a"?0:1])}</span>`:""}${it.cat?`<span class="cat">${esc(it.cat)}</span>`:""}<span class="ttl">${ttl}</span>${it.tag?`<span class="tag">${esc(it.tag)}</span>`:""}</div>
       ${route?`<div class="route">${route}</div>`:""}
-      ${it.lines?.length?"<ul>"+it.lines.map(l=>`<li class="${l.red?"red":""}">${esc(l.t)}</li>`).join("")+"</ul>":""}
+      ${it.lines?.length?"<ul>"+it.lines.map(l=>`<li class="${l.red?"red":""}">${lt(l.t)}</li>`).join("")+"</ul>":""}
       <div class="ft">${map}${it.price?`<span class="price">${esc(it.price)}</span>`:""}</div></div></div>`;
   });
   h+=`<button class="btn add" data-act="additem">＋ 新增項目</button></div>`;
@@ -351,7 +355,7 @@ function openOv(r,c){
 }
 function openInfo(i){
   const t=curTrip();t.info=t.info||[];const b=i>=0?t.info[i]:null;
-  openText({h:b?"編輯資訊":"新增資訊",showTitle:true,title:b?.title,body:linesToText(b?.lines),hint:"一行一點，開頭加 ! 會變紅色",
+  openText({h:b?"編輯資訊":"新增資訊",showTitle:true,title:b?.title,body:linesToText(b?.lines),hint:"一行一點，開頭加 ! 會變紅色；貼上網址會變成可以點的連結",
     onSave:(ti,body)=>{if(!ti){toast("請填標題");return false}const nb={title:ti,lines:textToLines(body)};if(b)t.info[i]=nb;else t.info.push(nb)},
     onDel:b?()=>t.info.splice(i,1):null});
 }
