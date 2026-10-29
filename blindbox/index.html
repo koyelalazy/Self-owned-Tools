@@ -1145,9 +1145,9 @@ function eventCalc(e,kind){
 let evPick={};// selected purchase per event
 // event sidebar: folders > events > the open event's pages (總表 / 購買紀錄 > each purchase / 品項 / 滿額贈)
 let evFold={};// collapsed sub-nodes, e.g. "<eventId>:trips"
-// Events list by date (earliest first); ones marked 已完成 go to the end.
+// Events list by date, newest first; undated ones after them, and ones marked 已完成 at the end.
 const evEnded=e=>{const d=e.end||e.start;return!!d&&d<todayISO()};
-const evSorted=()=>S.events.map((e,i)=>({e,i})).sort((a,b)=>(!!a.e.done-!!b.e.done)||String(a.e.start||a.e.end||"9999").localeCompare(String(b.e.start||b.e.end||"9999"))||a.i-b.i).map(x=>x.e);
+const evSorted=()=>S.events.map((e,i)=>({e,i})).sort((a,b)=>(!!a.e.done-!!b.e.done)||(!(a.e.start||a.e.end)-!(b.e.start||b.e.end))||String(b.e.start||b.e.end||"").localeCompare(String(a.e.start||a.e.end||""))||a.i-b.i).map(x=>x.e);
 function renderEvSide(){
   const cur=ev(),curF=folderOf(cur),pg=S.evTab||"sum";
   const sub=(e,d,attrs,label,small,on,caret)=>`<button class="evsub" data-of="${e.id}" ${attrs} style="--d:${d}" aria-current="${!!on}">${caret===undefined?`<span class="caret"></span>`:`<span class="caret" data-subfold="${caret}">${evFold[caret]?"▶":"▼"}</span>`}<span class="lb">${label}</span>${small!==""&&small!=null?`<small>${small}</small>`:""}</button>`;
