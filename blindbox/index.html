@@ -200,7 +200,7 @@ table.lst.ed td{padding:6px 8px}
 .tools button[aria-pressed="true"]{border-color:var(--acc);background:var(--acc-soft);color:var(--acc);font-weight:700}
 .tools kbd{font-size:10px;color:var(--muted);font-family:inherit}
 .sp{flex:1}
-#stat{font-size:12px;color:var(--muted)}
+#stat{font-size:12px;color:var(--muted)}.tbR{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
 
 #settings{flex:none;display:none;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--paper);font-size:13px}
 #settings.open{display:flex}
@@ -432,7 +432,7 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
   body.sideOpen .view{display:none}
   #evMetaT{display:inline-block}
   #eventView .toolbar{padding:8px 10px;gap:6px}
-  #work .toolbar{gap:6px}#work .toolbar .btn{padding:4px 6px}#work .toolbar .sp{display:none}
+  #work .toolbar{gap:6px}#work .toolbar .btn{padding:4px 6px}#work .tbR{margin-left:0;justify-content:flex-start}
   #evName{flex:1 1 auto;min-width:0;max-width:none;font-size:16px}
   body:not(.metaOpen) .evmeta{display:none}
   .evmeta{width:100%}
@@ -497,13 +497,14 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
         <input type="text" id="stName" title="系列名稱" style="width:170px;font-weight:700">
       </div>
       <div class="tools" id="tools"></div>
-      <span class="sp"></span>
+      <span class="tbR">
       <span id="stat"></span>
       <button class="btn" id="bBlank" title="沒有圖時先用名稱佔位">＋ 空白卡</button>
       <button class="btn" id="bAdd">＋ 加圖片</button>
-      <button class="btn" id="bSet">⚙ 設定</button>
       <button class="btn" id="bText">文字清單</button>
       <button class="btn primary" id="bExport">匯出示意圖</button>
+      <button class="btn" id="bSet">⚙ 設定</button>
+      </span>
     </div>
     <div id="settings"></div>
     <div id="stage"><div id="sheet"></div></div>
