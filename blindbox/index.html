@@ -148,7 +148,12 @@ tr.chrow td{background:var(--bg);padding:8px 10px 10px 60px;text-align:left}
 .chipbox{position:sticky;top:-10px;z-index:6;margin:-10px -10px 10px;padding:8px 10px;background:var(--bg);border-bottom:1px solid var(--line)}
 .chipT{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:7px 12px;font:inherit;font-size:14px;color:var(--ink);cursor:pointer}
 .chipT span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}.chipT b{color:var(--ink)}.chipT i{font-style:normal;color:var(--muted)}
-.chipbox .chiprow{display:none;flex-wrap:wrap;overflow:visible;margin:8px 0 0}.chipbox.open .chiprow{display:flex}
+.chiplist{display:none;flex-direction:column;margin-top:6px;max-height:55vh;overflow:auto}.chipbox.open .chiplist{display:flex}
+.chiplist button{display:flex;align-items:center;gap:8px;border:0;background:none;font:inherit;font-size:14px;color:var(--ink);text-align:left;padding:9px 10px;border-radius:8px;cursor:pointer}
+.chiplist .cl-r>span{flex:1;min-width:0}.chiplist small{color:var(--muted);font-size:12px}
+.chiplist .cl-r.in{padding-left:34px}.chiplist .cl-r[aria-current="true"]{background:var(--acc-soft);color:var(--acc);font-weight:700}
+.chiplist .cl-h{font-weight:700;color:var(--muted)}.chiplist .cl-h i{font-style:normal;font-size:10px;width:12px}.chiplist .cl-h small{margin-left:auto}
+.chiplist .add{color:var(--acc)}
 @media (max-width:760px){table.lst td.thc,table.lst th.thc,table.lst td.lm,table.lst th.lm{display:none}.lh-tot{min-width:0;width:100%}.lhead{position:static}.lwrap{overflow-x:auto}table.lst td,table.lst th{padding:6px}}
 .chtog{white-space:nowrap}
 table.lst.ed .ei{font:inherit;color:var(--ink);background:none;border:1px solid transparent;border-radius:6px;padding:3px 6px;width:100%;box-sizing:border-box}
@@ -1379,7 +1384,14 @@ function pageList(e,t){
   const kind=modeOf(e)?"全部":S.evSumKind||"全部",c=eventCalc(e,t?undefined:kind),trips=t?[t]:c.trips;
   const cur=t?t.cur:"TWD",only=!!S.tripOnly;
   // chips to switch purchase (small screens; the sidebar does this on wide screens)
-  const chips=`<div class="chipbox${chipOpen?" open":""}"><button class="chipT" data-chiptog aria-expanded="${chipOpen}"><span>${t?"購買紀錄：":""}<b>${esc(t?tripName(e,t):"總表")}</b></span><i>${chipOpen?"▴":"▾"}</i></button><div class="chiprow"><button data-gotrip="all" aria-current="${!t}">總表</button>${tripsSorted(e).map(x=>`<button data-gotrip="${x.id}" aria-current="${!!t&&x.id===t.id}">${esc(tripName(e,x))}</button>`).join("")}<button data-addtrip>＋ 新增</button></div></div>`;
+  // phone: a folding list of purchases, grouped 現場／線上 like the sidebar (the sidebar does this on wide screens)
+  const both=!modeOf(e)&&["現場","線上"].every(k=>e.trips.some(x=>x.kind===k));
+  const row=x=>`<button class="cl-r${both?" in":""}" data-gotrip="${x.id}" aria-current="${!!t&&x.id===t.id}"><span>${esc(tripName(e,x))}</span><small>${tripCalc(e,x).n} 件</small></button>`;
+  const list=both?["現場","線上"].map(k=>{const L=tripsSorted(e).filter(x=>x.kind===k),fk=e.id+":"+k;
+      return`<button class="cl-h" data-chipk="${fk}"><i>${evFold[fk]?"▶":"▼"}</i>${kindTag(k)}<small>${L.length}</small></button>`+(evFold[fk]?"":L.map(row).join(""))}).join("")
+    :tripsSorted(e).map(row).join("");
+  const chips=`<div class="chipbox${chipOpen?" open":""}"><button class="chipT" data-chiptog aria-expanded="${chipOpen}"><span>${t?(both?kindTag(t.kind)+" ":"")+`<b>${esc(tripName(e,t))}</b>`:"<b>總表</b>"}</span><i>${chipOpen?"▴":"▾"}</i></button>
+    <div class="chiplist"><button class="cl-r" data-gotrip="all" aria-current="${!t}"><span>總表</span></button>${list}<button class="cl-r add" data-addtrip><span>＋ 新增一次購買</span></button></div></div>`;
   let head;
   if(t){
     const k=tripCalc(e,t);
@@ -1713,6 +1725,7 @@ evStage.addEventListener("click",async e=>{
   if(d("data-sk")){S.evSumKind=d("data-sk").dataset.sk;save();render();return}
   if(d("data-emode")){const m=d("data-emode").dataset.emode;commit(()=>{if(m)x.mode=m;else delete x.mode});return}
   if(d("data-chiptog")){e.preventDefault();chipOpen=!chipOpen;render();return}
+  if(d("data-chipk")){e.preventDefault();const k=d("data-chipk").dataset.chipk;evFold[k]=!evFold[k];render();return}
   if(d("data-gotrip")){e.preventDefault();chipOpen=false;const g=d("data-gotrip").dataset.gotrip;if(g==="all")S.evTab="sum";else{evPick[x.id]=g;S.evTab="trips"}save();render();return}
   if(d("data-addtrip")){addTrip(x);return}
   if(d("data-gstep")){const [rid,vid,dv]=d("data-gstep").dataset.gstep.split("|");const tr=x.trips.find(y=>y.id===evPick[x.id]);if(!tr)return;
