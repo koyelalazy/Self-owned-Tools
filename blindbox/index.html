@@ -1096,7 +1096,7 @@ $("#fileJson").addEventListener("change",async e=>{
 // ---------- 快閃紀錄 ----------
 // An event keeps four separate things: 品項 (catalog), 購買紀錄 (one entry per day / online order),
 // 滿額贈 (gift rules) and 總表, which is computed from the purchases.
-const SEED_VERSION=0,SEED_VERSION_DESKTOP=40;
+const SEED_VERSION=0,SEED_VERSION_DESKTOP=41;
 // v2: Excel 商品目錄圖 + the user's two card trade images (marks recreated on top)
 const CUR={TWD:{sym:"NT$",rate:1,dp:0,name:"台幣"},USD:{sym:"US$",rate:32.5,dp:2,name:"美金"},JPY:{sym:"¥",rate:0.215,dp:0,name:"日幣"},KRW:{sym:"₩",rate:0.0235,dp:0,name:"韓幣"},CNY:{sym:"CN¥",rate:4.5,dp:2,name:"人民幣"}};
 const curOpts=sel=>Object.entries(CUR).map(([k,v])=>`<option value="${k}" ${k===sel?"selected":""}>${v.name} ${k}</option>`).join("");
@@ -1145,9 +1145,9 @@ function eventCalc(e,kind){
 let evPick={};// selected purchase per event
 // event sidebar: folders > events > the open event's pages (總表 / 購買紀錄 > each purchase / 品項 / 滿額贈)
 let evFold={};// collapsed sub-nodes, e.g. "<eventId>:trips"
-// Events list by date (earliest first); ones marked 已完成 go to the end.
+// Events list by date, newest first; undated ones after them, and ones marked 已完成 at the end.
 const evEnded=e=>{const d=e.end||e.start;return!!d&&d<todayISO()};
-const evSorted=()=>S.events.map((e,i)=>({e,i})).sort((a,b)=>(!!a.e.done-!!b.e.done)||String(a.e.start||a.e.end||"9999").localeCompare(String(b.e.start||b.e.end||"9999"))||a.i-b.i).map(x=>x.e);
+const evSorted=()=>S.events.map((e,i)=>({e,i})).sort((a,b)=>(!!a.e.done-!!b.e.done)||(!(a.e.start||a.e.end)-!(b.e.start||b.e.end))||String(b.e.start||b.e.end||"").localeCompare(String(a.e.start||a.e.end||""))||a.i-b.i).map(x=>x.e);
 function renderEvSide(){
   const cur=ev(),curF=folderOf(cur),pg=S.evTab||"sum";
   const sub=(e,d,attrs,label,small,on,caret)=>`<button class="evsub" data-of="${e.id}" ${attrs} style="--d:${d}" aria-current="${!!on}">${caret===undefined?`<span class="caret"></span>`:`<span class="caret" data-subfold="${caret}">${evFold[caret]?"▶":"▼"}</span>`}<span class="lb">${label}</span>${small!==""&&small!=null?`<small>${small}</small>`:""}</button>`;
@@ -1840,6 +1840,9 @@ function mergeById(b,l,r){
     else if(!inB||!same(R.get(id),B.get(id)))out.push(R.get(id))}
   return out;
 }
+// when two devices first meet, the same event made separately on each has different ids; keep this device's one
+function dedupeByName(d,local){for(const k of ["events","series"]){const mine=new Set((local[k]||[]).map(x=>x.id)),seen=new Set((local[k]||[]).map(x=>x.name));
+  d[k]=(d[k]||[]).filter(x=>mine.has(x.id)||!seen.has(x.name))}return d}
 const hasRec=d=>(d.events||[]).length>0;
 const pick=o=>{const r={};for(const k of SYNC_KEYS)if(o[k]!==undefined)r[k]=o[k];return r};
 function setSyncUI(state){
@@ -1866,7 +1869,7 @@ async function syncNow(){
         else{
           // first sync on this device: a device without records (a new phone) takes the cloud copy as it is, so its starter data isn't added;
           // one with records keeps them over a cloud copy that has none, and otherwise both are combined
-          next=base?merge3(base,local,rv):!hasRec(local)?rv:!hasRec(rv)?local:merge3(undefined,local,rv);
+          next=base?merge3(base,local,rv):!hasRec(local)?rv:!hasRec(rv)?local:dedupeByName(merge3(undefined,local,rv),local);
           if(base)next.seedV=Math.max(local.seedV||0,rv.seedV||0);
           put=!same(next,rv);
           if(!same(next,local)){if(editGen!==gen)continue;const d=await fromRefs(next);S={...S,...d};if(!S.events.some(e=>e.id===S.curEv))S.curEv=S.events[0]&&S.events[0].id;if(!ser())S.cur=S.series[0]&&S.series[0].id;
