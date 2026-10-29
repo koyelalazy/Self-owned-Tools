@@ -408,6 +408,8 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
 }
 #bSync.off{color:var(--muted)}
 #askT{white-space:pre-line}
+.gone{display:none!important}
+#bMenu.dirty{color:#e8a33d;border-color:#e8a33d;font-weight:700}
 #bUp.dirty{color:#e8a33d;border-color:#e8a33d;font-weight:700}
 #bSync.busy{opacity:.55}
 #bSync.err{color:var(--bad);border-color:var(--bad)}
@@ -443,7 +445,6 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
   header .lbl,#saveState{display:none}
   #evStage{padding:10px 10px 24px}
   header .seg button{padding:4px 9px}
-  #bSync:not(.off){display:none}/* settings stay reachable from 備份 */
   table.lst td.nmc{min-width:0}
   table.lst td.no{width:24px}
   table.lst th.sub,table.lst td.sub{display:none}
@@ -464,10 +465,8 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
   <button class="btn" id="bRedo" title="重做 (Ctrl+Y)">↷</button>
   <button class="btn tradeOnly" id="bText">文字清單</button>
   <button class="btn primary tradeOnly" id="bExport">匯出示意圖</button>
-  <button class="btn" id="bBackup">備份</button>
-  <button class="btn" id="bUp" hidden>⬆<span class="lbl"> 上傳</span></button>
-  <button class="btn" id="bDown" hidden>⬇<span class="lbl"> 下載</span></button>
-  <button class="btn off" id="bSync" title="雲端設定">☁</button>
+  <button class="btn" id="bMenu" title="備份、上傳／下載、雲端設定">⚙<span class="lbl"> 設定</span></button>
+  <span class="gone"><button id="bBackup"></button><button id="bUp"></button><button id="bDown"></button><button id="bSync"></button></span>
 </header>
 <main>
   <button id="mbar" type="button" aria-expanded="false"><span id="mbarT"></span><i>▾</i></button>
@@ -545,7 +544,6 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
     <button class="btn" id="bkLoad">從備份檔還原…</button>
     <button class="btn" id="bkAdd">從備份檔加入（不覆蓋）…</button>
     <button class="btn" id="bkFolder" hidden>打開資料所在資料夾</button>
-    <button class="btn" id="bkSync">雲端同步設定…</button>
   </div>
   <div class="row"><button class="btn" data-close>關閉</button></div>
 </dialog>
@@ -576,7 +574,7 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
   <div class="row"><button class="btn" data-close>關閉</button><button class="btn primary" id="cpGo">複製</button></div></dialog>
 <dialog id="dlgSync">
   <h2>雲端同步</h2>
-  <p class="hint">修改只會存在這台裝置。按「⬆ 上傳」會用這台的資料取代雲端；按「⬇ 下載」會用雲端的資料取代這台。兩邊不會自動合併，有還沒上傳的修改時「上傳」會變橘色。資料存在你的私人 GitHub 儲存庫（blindbox.json，圖片放在 blindbox-img 資料夾），和行事曆用同一組設定。手機網頁版：在電腦這裡按「給其他裝置掃的 QR code」，用手機相機掃就好。</p>
+  <p class="hint">修改只會存在這台裝置。「⚙ 設定」裡的「上傳到雲端」會用這台的資料取代雲端，「從雲端下載」會用雲端的資料取代這台。兩邊不會自動合併；有還沒上傳的修改時「設定」會變橘色。資料存在你的私人 GitHub 儲存庫（blindbox.json，圖片放在 blindbox-img 資料夾），和行事曆用同一組設定。手機網頁版：在電腦這裡按「給其他裝置掃的 QR code」，用手機相機掃就好。</p>
   <label class="sf">儲存庫<input id="s-repo" placeholder="帳號/儲存庫名稱" autocomplete="off"></label>
   <label class="sf">GitHub 金鑰<input id="s-token" type="password" placeholder="github_pat_…" autocomplete="off"></label>
   <div id="s-qrbox" hidden><div id="s-qr"></div><p class="hint">這個 QR code 裡有你的金鑰，掃完就關掉，不要拍照或傳給別人。</p></div>
@@ -1901,6 +1899,7 @@ function setSyncUI(state){
   $("#bUp").classList.toggle("dirty",dirty&&!busy);$("#bUp").innerHTML=busy&&syncBusy==="up"?"⬆<span class=lbl> 上傳中…</span>":dirty?"⬆<span class=lbl> 上傳</span> •":"⬆<span class=lbl> 上傳</span>";
   $("#bDown").innerHTML=busy&&syncBusy==="down"?"⬇<span class=lbl> 下載中…</span>":"⬇<span class=lbl> 下載</span>";
   $("#bUp").title=dirty?"這台有還沒上傳的修改":"把這台的資料放上雲端";
+  $("#bMenu").classList.toggle("dirty",dirty&&!busy);$("#bMenu").innerHTML=busy?"⚙<span class=lbl> 處理中…</span>":"⚙<span class=lbl> 設定</span>"+(dirty?" •":"");$("#bMenu").title=dirty?"有還沒上傳到雲端的修改":"備份、上傳／下載、雲端設定";
   $("#bSync").classList.toggle("off",!on);$("#bSync").classList.toggle("err",state==="err");$("#bSync").title=on?"雲端設定":"雲端同步：尚未設定";
   $("#syncState").textContent=!on?"尚未設定。":state==="err"?"⚠ "+syncErr:lastSync?"✓ 上次"+(lastDir==="up"?"上傳":"下載")+"："+new Date(lastSync).toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"}):"已設定。";
 }
@@ -1949,7 +1948,7 @@ function importSetup(text){
   const m=/#sync=([^&\s]+)/.exec(text);
   let cfg;try{cfg=JSON.parse(b64dec(decodeURIComponent(m?m[1]:text.trim())))}catch(e){toast("看不懂這個 QR code");return false}
   if(!cfg||!/^[\w.-]+\/[\w.-]+$/.test(cfg.repo||"")||!cfg.token){toast("看不懂這個 QR code");return false}
-  useCfg(cfg);setSyncUI();toast("已設定雲端，按「⬇ 下載」拿雲端的資料");
+  useCfg(cfg);setSyncUI();toast("已設定雲端，到「⚙ 設定」按「從雲端下載」");
   return true;
 }
 function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
@@ -1983,13 +1982,15 @@ async function startScan(){
 $("#s-showqr").onclick=showQR;$("#s-scan").onclick=startScan;
 $("#dlgSync").addEventListener("close",()=>{stopScan();$("#s-qrbox").hidden=true;$("#s-qr").innerHTML=""});
 $("#bSync").onclick=()=>openSync();
+$("#bMenu").addEventListener("click",e=>{readCfg();const on=!!syncCfg,dirty=on&&ls.get("blindbox-dirty")==="1";showMenu(e.currentTarget,[
+  ...(on?[{label:"⬆ 上傳到雲端"+(dirty?"（有還沒上傳的修改）":""),fn:uploadNow},{label:"⬇ 從雲端下載",fn:downloadNow},null]:[]),
+  {label:"☁ 雲端同步設定…",fn:openSync},{label:"💾 備份與還原…",fn:()=>$("#bBackup").click()}])});
 $("#bUp").onclick=()=>{readCfg();uploadNow()};$("#bDown").onclick=()=>{readCfg();downloadNow()};
-$("#bkSync").onclick=()=>{$("#dlgBackup").close();openSync()};
 function openSync(){readCfg();$("#s-showqr").hidden=!syncCfg;$("#s-scan").hidden=!navigator.mediaDevices||!!window.desk;$("#s-repo").value=syncCfg?.repo||"koyelalazy/Self-owned-Data";$("#s-token").value=syncCfg?.token||"";$("#s-off").hidden=!syncCfg;setSyncUI(syncErr?"err":"");$("#dlgSync").showModal()};
 $("#s-save").onclick=()=>{
   const repo=$("#s-repo").value.trim().replace(/^https:\/\/github\.com\//,"").replace(/\/$/,""),token=$("#s-token").value.trim();
   if(!/^[\w.-]+\/[\w.-]+$/.test(repo)||!token){toast("請填好儲存庫和金鑰");return}
-  useCfg({repo,token});setSyncUI();$("#dlgSync").close();toast("已設定雲端：用「⬆ 上傳」或「⬇ 下載」");
+  useCfg({repo,token});setSyncUI();$("#dlgSync").close();toast("已設定雲端：到「⚙ 設定」上傳或下載");
 };
 $("#s-off").onclick=async()=>{
   if(!await askOk(window.desk?"停用這台電腦的同步？":"停用同步？這台裝置上的行事曆網頁版也會一起停用。"))return;
