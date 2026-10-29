@@ -194,9 +194,9 @@ table.lst.ed td{padding:6px 8px}
 .seg{display:flex;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:2px}
 .seg button{border:0;background:none;color:var(--muted);padding:3px 10px;border-radius:999px;cursor:pointer;font-weight:700;white-space:nowrap}
 .seg button[aria-pressed="true"]{background:var(--acc);color:#fff}
-.tools{display:flex;gap:4px}
+.tools{display:flex;gap:4px}.btn.ico{min-width:32px;font-size:15px;line-height:1.2}
 .serctl{display:flex;gap:4px;align-items:center}
-.tools button{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.tools button{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:3px 9px;min-width:34px;justify-content:center;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap}
 .tools button[aria-pressed="true"]{border-color:var(--acc);background:var(--acc-soft);color:var(--acc);font-weight:700}
 .tools kbd{font-size:10px;color:var(--muted);font-family:inherit}
 .sp{flex:1}
@@ -586,6 +586,7 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
   <div class="row"><button class="btn danger" id="s-off">停用同步</button><button class="btn" data-close>取消</button><button class="btn primary" id="s-save">儲存設定</button></div>
 </dialog>
 
+<dialog id="dlgBusy"><h2 id="busyT"></h2><p id="busyP" style="color:var(--muted);margin:6px 0 0">請不要關掉或切換到別的 App，完成後會自動關閉。</p></dialog>
 <dialog id="dlgAsk"><h2 id="askT"></h2><input type="text" id="askIn" style="width:100%"><div class="row"><button class="btn" id="askNo">取消</button><button class="btn primary" id="askYes">確定</button></div></dialog>
 
 <div class="toast" id="toast"></div>
@@ -700,17 +701,17 @@ function renderToolbar(){
   const s=ser();
   if(document.activeElement!==$("#stName"))$("#stName").value=s.name;
   const T=s.mode==="grid"
-    ?[["want","✓ 想要","1"],["plus","＋1 多","2"],["minus","－1","3"],["select","☝ 選取／排序","4"]]
-    :[["want","✓ 想要","1"],["plus","＋1 多","2"],["minus","－1／刪","3"],["select","☝ 選取／移動","4"]];
+    ?[["want","✓","想要","1"],["plus","＋1","多一張","2"],["minus","－1","少一張","3"],["select","☝","選取／排序","4"]]
+    :[["want","✓","想要","1"],["plus","＋1","多一張","2"],["minus","－1","少一張／刪除","3"],["select","☝","選取／移動","4"]];
   if(!T.some(t=>t[0]===tool))tool="want";
-  $("#tools").innerHTML=T.map(([k,l,kb])=>`<button data-tool="${k}" aria-pressed="${tool===k}">${l}<kbd>${kb}</kbd></button>`).join("");
+  $("#tools").innerHTML=T.map(([k,ic,l,kb])=>`<button data-tool="${k}" aria-pressed="${tool===k}" title="${l}（快速鍵 ${kb}）" aria-label="${l}">${ic}</button>`).join("");
   const st=seriesStat(s);
   // a card without a ✓ counts as collected
   const hasContent=s.mode==="grid"?st.n>0:!!s.board;
   $("#stat").textContent=!hasContent?"":st.w===0?"✓ 收集完成":s.mode==="grid"?`收集 ${st.h}/${st.n}`:`還缺 ${st.w} 款`;
   $("#stat").classList.toggle("done",hasContent&&st.w===0);
   $("#bBlank").hidden=s.mode!=="grid";
-  $("#bAdd").textContent=s.mode==="grid"?"＋ 加卡片圖":(s.board?"換整張圖":"＋ 上傳整張圖");
+  $("#bAdd").textContent=s.mode==="grid"?"＋ 加卡片圖":"＋ 上傳整張圖";$("#bAdd").hidden=s.mode==="board"&&!!s.board;// 換整張圖 lives in ⚙ 設定
   $("#bUndo").disabled=!undoStack.length;$("#bRedo").disabled=!redoStack.length;
 }
 function renderSettings(){
@@ -730,8 +731,9 @@ function renderSettings(){
 `:""}
     <span class="sp"></span>
     <label>分類 <select id="stFolder">${folderOptions(folderOf(s))}</select></label>
-    <button class="btn sm" id="stDup">複製系列</button>
-    <button class="btn sm danger" id="stDel">刪除系列</button>`;
+    <span style="display:flex;gap:4px">${s.mode==="board"&&s.board?`<button class="btn sm ico" id="stReplace" title="換整張圖" aria-label="換整張圖">🖼</button>`:""}
+    <button class="btn sm ico" id="stDup" title="複製系列" aria-label="複製系列">⧉</button>
+    <button class="btn sm danger ico" id="stDel" title="刪除系列" aria-label="刪除系列">🗑</button></span>`;
 }
 function renderSheet(){
   const s=ser(),sh=$("#sheet");
@@ -1014,6 +1016,7 @@ $("#work").addEventListener("click",async e=>{
   const fk=folderOf(s);
   if(t.id==="stUp"){let j=i-1;while(j>=0&&folderOf(S.series[j])!==fk)j--;if(j>=0)commit(()=>{S.series.splice(i,1);S.series.splice(j,0,s)})}
   if(t.id==="stDown"){let j=i+1;while(j<S.series.length&&folderOf(S.series[j])!==fk)j++;if(j<S.series.length)commit(()=>{S.series.splice(i,1);S.series.splice(j,0,s)})}
+  if(t.id==="stReplace"){$("#bAdd").click();return}
   if(t.id==="stDup")commit(()=>{const c=JSON.parse(JSON.stringify(s));c.id=uid();c.name+="（複製）";c.cards.forEach(x=>x.id=uid());if(c.board)c.board.marks.forEach(m=>m.id=uid());S.series.splice(i+1,0,c);S.cur=c.id});
   if(t.id==="stDel"&&await askOk(`刪除「${s.name}」？（可用 Ctrl+Z 復原）`))commit(()=>{S.series.splice(i,1);if(!S.series.length)S.series.push(newSeries());S.cur=S.series[Math.max(0,i-1)].id});
 });
@@ -1855,15 +1858,20 @@ async function nameOf(d){
 function walk(o,f){if(Array.isArray(o))return o.map(x=>walk(x,f));if(o&&typeof o==="object"){const r={};for(const k in o)r[k]=walk(o[k],f);return r}return f(o)}
 function strings(o,test,out=new Set()){if(Array.isArray(o))o.forEach(x=>strings(x,test,out));else if(o&&typeof o==="object")for(const k in o)strings(o[k],test,out);else if(test(o))out.add(o);return out}
 async function toRefs(d){for(const s of strings(d,isImg))await nameOf(s);return walk(d,v=>isImg(v)?"ghimg:"+imgName.get(v):v)}
-async function fromRefs(d){
-  for(const s of strings(d,v=>typeof v==="string"&&v.startsWith("ghimg:"))){const n=s.slice(6);if(imgData.has(n))continue;
-    try{const buf=await gh(IMG_DIR+"/"+n,"GET",null,true);if(buf){const u="data:"+MIME[n.split(".").pop()]+";base64,"+bufB64(buf);imgName.set(u,n);imgData.set(n,u)}}catch(e){if(e.status===401||e.status===403)throw e}}
+async function fromRefs(d,onProg){
+  const need=[...strings(d,v=>typeof v==="string"&&v.startsWith("ghimg:"))].map(s=>s.slice(6)).filter(n=>!imgData.has(n));
+  let done=0,i=0,fail=0;onProg&&onProg(0,need.length);
+  const one=async n=>{for(let t=0;t<3;t++){try{const buf=await gh(IMG_DIR+"/"+n,"GET",null,true);if(buf){const u="data:"+MIME[n.split(".").pop()]+";base64,"+bufB64(buf);imgName.set(u,n);imgData.set(n,u)}return}catch(e){if(e.status===401||e.status===403||e.status===404)throw e}}fail++};
+  const worker=async()=>{while(i<need.length){const n=need[i++];try{await one(n)}catch(e){if(e.status!==404)throw e}onProg&&onProg(++done,need.length)}};
+  await Promise.all(Array.from({length:Math.min(6,need.length)},worker));
+  if(fail)throw new Error(`有 ${fail} 張圖下載失敗，請再按一次下載`);
   return walk(d,v=>typeof v==="string"&&v.startsWith("ghimg:")?(imgData.get(v.slice(6))||""):v);
 }
-async function pushImgs(d){
+async function pushImgs(d,onProg){
   const known=new Set(JSON.parse(ls.get(IMGS_KEY)||"[]"));
   if(!imgListed){try{const l=await gh(IMG_DIR,"GET");if(Array.isArray(l))l.forEach(f=>known.add(f.name))}catch(e){if(e.status===401||e.status===403)throw e}imgListed=true}
-  for(const s of strings(d,v=>typeof v==="string"&&v.startsWith("ghimg:"))){const n=s.slice(6),u=imgData.get(n);if(known.has(n)||!u)continue;
+  const todo=[...strings(d,v=>typeof v==="string"&&v.startsWith("ghimg:"))].map(s=>s.slice(6)).filter(n=>!known.has(n)&&imgData.get(n));let k=0;
+  for(const n of todo){const u=imgData.get(n);onProg&&onProg(k++,todo.length);
     try{await gh(IMG_DIR+"/"+n,"PUT",{message:"blindbox image",content:u.slice(u.indexOf(",")+1)})}catch(e){if(e.message!=="conflict")throw e}
     known.add(n);ls.set(IMGS_KEY,JSON.stringify([...known]))}
 }
@@ -1901,7 +1909,7 @@ const pick=o=>{const r={};for(const k of SYNC_KEYS)if(o[k]!==undefined)r[k]=o[k]
 const markDirty=()=>{ls.set("blindbox-dirty","1");setSyncUI()};
 const countTxt=d=>`${(d.events||[]).length} 個快閃、${(d.series||[]).length} 個交換系列`;
 function setSyncUI(state){
-  const on=!!syncCfg,dirty=on&&ls.get("blindbox-dirty")==="1",busy=state==="busy";
+  const on=!!syncCfg,dirty=on&&ls.get("blindbox-dirty")==="1",busy=state==="busy"||!!syncBusy;
   $("#bUp").hidden=$("#bDown").hidden=!on;
   $("#bUp").disabled=$("#bDown").disabled=busy;
   $("#bUp").classList.toggle("dirty",dirty&&!busy);$("#bUp").innerHTML=busy&&syncBusy==="up"?"⬆<span class=lbl> 上傳中…</span>":dirty?"⬆<span class=lbl> 上傳</span> •":"⬆<span class=lbl> 上傳</span>";
@@ -1911,6 +1919,8 @@ function setSyncUI(state){
   $("#bSync").classList.toggle("off",!on);$("#bSync").classList.toggle("err",state==="err");$("#bSync").title=on?"雲端設定":"雲端同步：尚未設定";
   $("#syncState").textContent=!on?"尚未設定。":state==="err"?"⚠ "+syncErr:lastSync?"✓ 上次"+(lastDir==="up"?"上傳":"下載")+"："+new Date(lastSync).toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"}):"已設定。";
 }
+const busyOn=t=>{$("#busyT").textContent=t;const d=$("#dlgBusy");d.oncancel=e=>e.preventDefault();if(!d.open)d.showModal()};
+const busyOff=()=>{const d=$("#dlgBusy");if(d.open)d.close()};
 let appReady=false,lastDir="";// nothing touches the cloud until this device's own data has been read
 async function readRemote(){
   const remote=await gh(SYNC_FILE,"GET");if(!remote)return null;
@@ -1925,10 +1935,10 @@ async function uploadNow(){
       const other=r.sha!==ls.get(SHA_KEY),less=shrunk(r.data,mine);
       if((other||less)&&!await askOk((other?"雲端在你上次上傳或下載之後，被其他裝置改過了。\n":"")+`雲端：${countTxt(r.data)}\n這台：${countTxt(mine)}\n確定用這台的資料取代雲端？`)){syncBusy=false;setSyncUI();return}
     }
-    const next=await toRefs(mine);await pushImgs(next);
+    busyOn("正在上傳到雲端…");const next=await toRefs(mine);await pushImgs(next,(k,n)=>n&&busyOn(`正在上傳圖片 ${k}／${n}…`));
     const res=await gh(SYNC_FILE,"PUT",{message:"blindbox upload "+new Date().toISOString(),content:b64enc(JSON.stringify({...next,savedAt:new Date().toISOString()})),...(r?{sha:r.sha}:{})});
-    ls.set(SHA_KEY,res.content.sha);ls.set("blindbox-dirty",null);lastSync=Date.now();lastDir="up";syncErr="";syncBusy=false;setSyncUI();toast("已上傳到雲端");
-  }catch(e){syncBusy=false;syncErr=e.message==="conflict"?"雲端剛好被其他裝置改了，請再按一次":e.message||String(e);setSyncUI("err");toast("上傳失敗："+syncErr)}
+    ls.set(SHA_KEY,res.content.sha);ls.set("blindbox-dirty",null);lastSync=Date.now();lastDir="up";syncErr="";syncBusy=false;busyOff();setSyncUI();toast("已上傳到雲端");
+  }catch(e){busyOff();syncBusy=false;syncErr=e.message==="conflict"?"雲端剛好被其他裝置改了，請再按一次":e.message||String(e);setSyncUI("err");toast("上傳失敗："+syncErr)}
 }
 async function downloadNow(){
   if(!syncCfg||!appReady||syncBusy)return;
@@ -1937,15 +1947,17 @@ async function downloadNow(){
     const r=await readRemote();
     if(!r){syncBusy=false;setSyncUI();toast("雲端還沒有資料，請先從有資料的裝置上傳");return}
     if(!await askOk(`用雲端的資料取代這台的資料？\n雲端：${countTxt(r.data)}\n這台：${countTxt(pick(S))}`+(ls.get("blindbox-dirty")==="1"?"\n⚠ 這台有還沒上傳的修改，下載後會不見。":""))){syncBusy=false;setSyncUI();return}
-    const d=await fromRefs(r.data);S={...S,...d};if(!Array.isArray(S.folders))S.folders=[];
+    busyOn("正在從雲端下載…");
+    for(const x of strings(pick(S),isImg))await nameOf(x);// pictures this device already has are not downloaded again
+    const d=await fromRefs(r.data,(k,n)=>n&&busyOn(`正在下載圖片 ${k}／${n}…`));busyOn("正在儲存…");S={...S,...d};if(!Array.isArray(S.folders))S.folders=[];
     if(!S.series.length){const x=demo();S.series=[x];S.cur=x.id}
     if(!S.events.some(e=>e.id===S.curEv))S.curEv=S.events[0]&&S.events[0].id;if(!ser())S.cur=S.series[0].id;
     undoStack.length=redoStack.length=0;
     ls.set(SHA_KEY,r.sha);ls.set("blindbox-dirty",null);
     await store.save(JSON.stringify(S));
     if((S.seedV||0)<SEED_VERSION){applySeeds();save()}
-    render();lastSync=Date.now();lastDir="down";syncErr="";syncBusy=false;setSyncUI();toast("已從雲端下載");
-  }catch(e){syncBusy=false;syncErr=e.message||String(e);setSyncUI("err");toast("下載失敗："+syncErr)}
+    busyOff();render();lastSync=Date.now();lastDir="down";syncErr="";syncBusy=false;setSyncUI();toast("已從雲端下載");
+  }catch(e){busyOff();syncBusy=false;syncErr=e.message||String(e);setSyncUI("err");toast("下載失敗："+syncErr)}
 }
 function useCfg(cfg){
   if(!syncCfg||syncCfg.repo!==cfg.repo){ls.set(BASE_KEY,null);ls.set(SHA_KEY,null);ls.set(IMGS_KEY,null)}
