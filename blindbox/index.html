@@ -53,7 +53,7 @@ aside h3{margin:0 4px 4px;font-size:12px;color:var(--muted);font-weight:700}
 .endtag{display:inline-block;background:var(--muted);color:var(--paper);font-size:11px;font-weight:900;border-radius:999px;padding:0 7px;margin-right:5px;vertical-align:1px}
 #evDone.on{background:#2fae6b;border-color:#2fae6b;color:#fff;font-weight:700}
 .donetag{display:inline-block;background:#2fae6b;color:#fff;font-size:11px;font-weight:900;border-radius:999px;padding:0 7px;margin-right:5px;vertical-align:1px}
-#stat.done{background:#2fae6b;color:#fff;font-weight:900;border-radius:999px;padding:2px 10px;font-size:13px}
+#stat.done{background:#2fae6b;color:#fff}
 aside .btn{margin-top:4px}
 #side .ser,#side .fold{margin-left:calc(var(--d,0) * 14px)}
 .fold{display:flex;align-items:center;gap:4px;border-radius:8px;padding:5px 4px 5px 2px;cursor:pointer;user-select:none;border:1px dashed transparent}
@@ -200,7 +200,7 @@ table.lst.ed td{padding:6px 8px}
 .tools button[aria-pressed="true"]{border-color:var(--acc);background:var(--acc-soft);color:var(--acc);font-weight:700}
 .tools kbd{font-size:10px;color:var(--muted);font-family:inherit}
 .sp{flex:1}
-#stat{font-size:12px;color:var(--muted)}.tbR{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+#stat{display:table;margin:0 0 10px;font-size:15px;font-weight:800;padding:4px 14px;border-radius:999px;background:#f0a83a;color:#fff;letter-spacing:.5px}#stat:empty{display:none}.tbR{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
 
 #settings{flex:none;display:none;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--paper);font-size:13px}
 #settings.open{display:flex}
@@ -498,7 +498,6 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
       </div>
       <div class="tools" id="tools"></div>
       <span class="tbR">
-      <span id="stat"></span>
       <button class="btn" id="bBlank" title="沒有圖時先用名稱佔位">＋ 空白卡</button>
       <button class="btn" id="bAdd">＋ 加圖片</button>
       <button class="btn" id="bText">文字清單</button>
@@ -507,7 +506,7 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
       </span>
     </div>
     <div id="settings"></div>
-    <div id="stage"><div id="sheet"></div></div>
+    <div id="stage"><span id="stat"></span><div id="sheet"></div></div>
     <div id="selbar"></div>
   </section>
 </main>
