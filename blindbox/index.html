@@ -415,6 +415,43 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
 #dlgSync label.sf input{padding:7px 9px;font-size:15px}
 #s-qr svg{width:220px;height:220px;display:block;margin:8px auto;background:#fff}
 #s-cam{width:100%;border-radius:10px;margin-top:8px}
+
+/* phones: the list of 快閃／系列 and the event's 期間・地點 row fold away so the page itself has room */
+#mbar,#evMetaT{display:none}
+@media (max-width:760px){
+  #mbar{display:flex;align-items:center;gap:6px;width:100%;border:0;border-bottom:1px solid var(--line);background:var(--paper);color:var(--ink);padding:8px 12px;font:inherit;font-weight:800;text-align:left;cursor:pointer}
+  #mbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #mbar i{font-style:normal;color:var(--muted);transition:transform .15s}
+  body.sideOpen #mbar i{transform:rotate(180deg)}
+  body:not(.sideOpen) aside{display:none}
+  body.sideOpen aside{flex-direction:column;max-height:60vh;overflow:auto;padding:8px 10px}
+  body.sideOpen aside .ser{max-width:none;margin-bottom:4px}
+  body.sideOpen aside h3{display:block}
+  body.sideOpen .view{display:none}
+  #evMetaT{display:inline-block}
+  #eventView .toolbar{padding:8px 10px;gap:6px}
+  #evName{flex:1 1 auto;min-width:0;max-width:none;font-size:16px}
+  body:not(.metaOpen) .evmeta{display:none}
+  .evmeta{width:100%}
+  #evTabs{order:5}
+  #eventView .sp{order:6}
+  #evStat{display:none}
+  #evDone{order:7;padding:5px 8px}
+  #evMore{order:8}
+  header{gap:4px;padding:6px 8px}
+  header .btn{padding:4px 8px}
+  header .lbl,#saveState{display:none}
+  #evStage{padding:10px 10px 24px}
+  header .seg button{padding:4px 9px}
+  #bSync:not(.off){display:none}/* settings stay reachable from 備份 */
+  table.lst td.nmc{min-width:0}
+  table.lst td.no{width:24px}
+  table.lst th.sub,table.lst td.sub{display:none}
+  table.lst td.pr input{width:54px}
+  table.lst th{white-space:normal}
+  table.gmx td,table.gmx th{padding:6px}
+  table.gmx th.col{min-width:0}
+}
 </style>
 </head>
 <body>
@@ -428,15 +465,17 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
   <button class="btn tradeOnly" id="bText">文字清單</button>
   <button class="btn primary tradeOnly" id="bExport">匯出示意圖</button>
   <button class="btn" id="bBackup">備份</button>
-  <button class="btn" id="bUp" hidden>⬆ 上傳</button>
-  <button class="btn" id="bDown" hidden>⬇ 下載</button>
+  <button class="btn" id="bUp" hidden>⬆<span class="lbl"> 上傳</span></button>
+  <button class="btn" id="bDown" hidden>⬇<span class="lbl"> 下載</span></button>
   <button class="btn off" id="bSync" title="雲端設定">☁</button>
 </header>
 <main>
+  <button id="mbar" type="button" aria-expanded="false"><span id="mbarT"></span><i>▾</i></button>
   <aside id="side"></aside>
   <section id="eventView" class="view" hidden>
     <div class="toolbar">
       <input type="text" id="evName" title="快閃名稱">
+      <button class="mini" id="evMetaT" type="button" aria-expanded="false" title="期間、地點和連結">期間／地點 ▾</button>
       <span class="evmeta">
         <label class="evf" title="活動期間">期間 <input type="date" id="evStart"> ～ <input type="date" id="evEnd"></label>
         <label class="evf" title="地點">地點 <input type="text" id="evPlace" placeholder="地點名稱"></label>
@@ -618,7 +657,7 @@ function render(){
   for(const b of $("#appTabs").children)b.setAttribute("aria-pressed",b.dataset.tab===S.tab);
   $("#eventView").hidden=!ev;$("#work").hidden=ev;
   document.querySelectorAll(".tradeOnly").forEach(x=>x.hidden=ev);
-  $("#bUndo").disabled=!undoStack.length;$("#bRedo").disabled=!redoStack.length;
+  $("#bUndo").disabled=!undoStack.length;$("#bRedo").disabled=!redoStack.length;renderMbar();
   if(ev){renderEvSide();renderEvent();return}
   renderSide();renderToolbar();renderSettings();renderSheet();renderSel();
 }
@@ -1385,7 +1424,7 @@ function pageList(e,t){
     }
   });
   const table=e.items.length?`<div class="lbar"><span>${shown} 項${only?"（只看有買的）":""}</span><span class="sp"></span><label><input type="checkbox" id="tripOnly" ${only?"checked":""}> 只看有買的</label></div>
-    <div class="lwrap"><table class="lst"><thead><tr><th>序號</th><th class="thc">商品圖</th><th class="l">商品名稱 / 備註</th><th class="r">單價${t?` (${cur})`:" (TWD)"}</th><th>購買數量</th><th class="lm">限購</th><th class="r">小計</th><th>售完</th></tr></thead>
+    <div class="lwrap"><table class="lst"><thead><tr><th>序號</th><th class="thc">商品圖</th><th class="l">商品名稱 / 備註</th><th class="r pr">單價${t?` (${cur})`:" (TWD)"}</th><th>購買數量</th><th class="lm">限購</th><th class="r sub">小計</th><th>售完</th></tr></thead>
     <tbody>${rows||`<tr><td colspan="8" style="padding:16px;color:var(--muted)">${t?"這次還沒買東西，取消「只看有買的」就能挑":"還沒有購買紀錄"}</td></tr>`}</tbody></table></div>`
     :`<p class="hint">還沒有品項。點左邊「購買紀錄」加入商品，或貼上品項清單。</p>`;
   let foot="";
@@ -1859,8 +1898,8 @@ function setSyncUI(state){
   const on=!!syncCfg,dirty=on&&ls.get("blindbox-dirty")==="1",busy=state==="busy";
   $("#bUp").hidden=$("#bDown").hidden=!on;
   $("#bUp").disabled=$("#bDown").disabled=busy;
-  $("#bUp").classList.toggle("dirty",dirty&&!busy);$("#bUp").textContent=busy&&syncBusy==="up"?"⬆ 上傳中…":dirty?"⬆ 上傳 •":"⬆ 上傳";
-  $("#bDown").textContent=busy&&syncBusy==="down"?"⬇ 下載中…":"⬇ 下載";
+  $("#bUp").classList.toggle("dirty",dirty&&!busy);$("#bUp").innerHTML=busy&&syncBusy==="up"?"⬆<span class=lbl> 上傳中…</span>":dirty?"⬆<span class=lbl> 上傳</span> •":"⬆<span class=lbl> 上傳</span>";
+  $("#bDown").innerHTML=busy&&syncBusy==="down"?"⬇<span class=lbl> 下載中…</span>":"⬇<span class=lbl> 下載</span>";
   $("#bUp").title=dirty?"這台有還沒上傳的修改":"把這台的資料放上雲端";
   $("#bSync").classList.toggle("off",!on);$("#bSync").classList.toggle("err",state==="err");$("#bSync").title=on?"雲端設定":"雲端同步：尚未設定";
   $("#syncState").textContent=!on?"尚未設定。":state==="err"?"⚠ "+syncErr:lastSync?"✓ 上次"+(lastDir==="up"?"上傳":"下載")+"："+new Date(lastSync).toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"}):"已設定。";
@@ -1957,6 +1996,11 @@ $("#s-off").onclick=async()=>{
   syncCfg=null;["gh-sync",BASE_KEY,SHA_KEY,IMGS_KEY,"blindbox-dirty"].forEach(k=>ls.set(k,null));setSyncUI();$("#dlgSync").close();toast("已停用同步");
 };
 
+// phones: fold the 快閃／系列 list and the 期間・地點 row
+$("#mbar").addEventListener("click",()=>{const o=document.body.classList.toggle("sideOpen");$("#mbar").setAttribute("aria-expanded",o)});
+$("#side").addEventListener("click",e=>{if(e.target.closest(".ser")&&!e.target.closest("[data-evfold]"))setTimeout(()=>{document.body.classList.remove("sideOpen");$("#mbar").setAttribute("aria-expanded",false)})});
+$("#evMetaT").addEventListener("click",()=>{const o=document.body.classList.toggle("metaOpen");$("#evMetaT").setAttribute("aria-expanded",o);$("#evMetaT").textContent=o?"期間／地點 ▴":"期間／地點 ▾"});
+function renderMbar(){const x=S.tab==="event"?ev():ser();$("#mbarT").textContent=(S.tab==="event"?"快閃：":"系列：")+(x?x.name:"（還沒有）")}
 // ---------- start ----------
 (async()=>{
   let raw=null;try{raw=await store.load()}catch(e){$("#saveState").textContent="⚠ 無法讀取儲存資料"}
