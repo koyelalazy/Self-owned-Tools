@@ -48,6 +48,10 @@ aside h3{margin:0 4px 4px;font-size:12px;color:var(--muted);font-weight:700}
 .evrow small{display:block;padding-left:16px;line-height:1.4;word-break:break-word}
 .ser.done{border-left:4px solid #2fae6b;background:color-mix(in srgb,#2fae6b 10%,transparent)}
 .ser.done[aria-current="true"]{border-color:#2fae6b;border-left-width:4px}
+.ser.ended:not([aria-current="true"]){opacity:.62}
+.endtag,.donetag{white-space:nowrap}
+.endtag{display:inline-block;background:var(--muted);color:var(--paper);font-size:11px;font-weight:900;border-radius:999px;padding:0 7px;margin-right:5px;vertical-align:1px}
+#evDone.on{background:#2fae6b;border-color:#2fae6b;color:#fff;font-weight:700}
 .donetag{display:inline-block;background:#2fae6b;color:#fff;font-size:11px;font-weight:900;border-radius:999px;padding:0 7px;margin-right:5px;vertical-align:1px}
 #stat.done{background:#2fae6b;color:#fff;font-weight:900;border-radius:999px;padding:2px 10px;font-size:13px}
 aside .btn{margin-top:4px}
@@ -440,6 +444,7 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
       <span class="seg" id="evTabs"><button data-et="info">資訊</button><button data-et="items">品項</button><button data-et="sum">總表</button><button data-et="trips">購買紀錄</button></span>
       <span class="sp"></span>
       <span id="evStat"></span>
+      <button class="btn" id="evDone" title="標記這個快閃已經處理完（排到清單最後）">✓ 已完成</button>
       <button class="btn" id="evMore" title="更多">⋯</button>
     </div>
     <div id="evStage"></div>
@@ -1140,6 +1145,9 @@ function eventCalc(e,kind){
 let evPick={};// selected purchase per event
 // event sidebar: folders > events > the open event's pages (總表 / 購買紀錄 > each purchase / 品項 / 滿額贈)
 let evFold={};// collapsed sub-nodes, e.g. "<eventId>:trips"
+// Events list by date (earliest first); ones marked 已完成 go to the end.
+const evEnded=e=>{const d=e.end||e.start;return!!d&&d<todayISO()};
+const evSorted=()=>S.events.map((e,i)=>({e,i})).sort((a,b)=>(!!a.e.done-!!b.e.done)||String(a.e.start||a.e.end||"9999").localeCompare(String(b.e.start||b.e.end||"9999"))||a.i-b.i).map(x=>x.e);
 function renderEvSide(){
   const cur=ev(),curF=folderOf(cur),pg=S.evTab||"sum";
   const sub=(e,d,attrs,label,small,on,caret)=>`<button class="evsub" data-of="${e.id}" ${attrs} style="--d:${d}" aria-current="${!!on}">${caret===undefined?`<span class="caret"></span>`:`<span class="caret" data-subfold="${caret}">${evFold[caret]?"▶":"▼"}</span>`}<span class="lb">${label}</span>${small!==""&&small!=null?`<small>${small}</small>`:""}</button>`;
@@ -1156,9 +1164,9 @@ function renderEvSide(){
       +sub(e,d,`data-subpg="items"`,"購買紀錄",e.trips.length||"",pg==="items",tk)+tr
 ;
   };
-  const evRow=(e,d)=>{const open=cur&&e.id===cur.id&&!evFold[e.id];return`<button class="ser evrow" data-ev="${e.id}" draggable="true" style="--d:${d}" aria-current="${!!cur&&e.id===cur.id}"${cur&&e.id===cur.id&&pg==="info"?' data-info="1"':""}><b><span class="evc" data-evfold="${e.id}" title="展開／收合">${open?"▼":"▶"}</span>${esc(e.name)}</b>${evWhen(e)?`<small>${esc(evWhen(e))}</small>`:""}${e.place?`<small>${esc(e.place)}</small>`:""}</button>`+(open?`<div class="evkids">${kids(e,d+1)}</div>`:"")};
+  const evRow=(e,d)=>{const open=cur&&e.id===cur.id&&!evFold[e.id],tag=e.done?`<span class="donetag">✓ 已完成</span>`:evEnded(e)?`<span class="endtag">已結束</span>`:"";return`<button class="ser evrow${e.done?" done":evEnded(e)?" ended":""}" data-ev="${e.id}" draggable="true" style="--d:${d}" aria-current="${!!cur&&e.id===cur.id}"${cur&&e.id===cur.id&&pg==="info"?' data-info="1"':""}><b><span class="evc" data-evfold="${e.id}" title="展開／收合">${open?"▼":"▶"}</span>${esc(e.name)}</b>${evWhen(e)||tag?`<small>${tag}${esc(evWhen(e))}</small>`:""}${e.place?`<small>${esc(e.place)}</small>`:""}</button>`+(open?`<div class="evkids">${kids(e,d+1)}</div>`:"")};
   const fold=(f,d)=>foldRow(f,d,!f.open&&curF&&fUnder(curF,f.id))+(f.open?tree(f.id,d+1):"");
-  const tree=(p,d)=>folders().filter(f=>fParent(f)===p).map(f=>fold(f,d)).join("")+S.events.filter(x=>folderOf(x)===p).map(x=>evRow(x,d)).join("");
+  const tree=(p,d)=>folders().filter(f=>fParent(f)===p).map(f=>fold(f,d)).join("")+evSorted().filter(x=>folderOf(x)===p).map(x=>evRow(x,d)).join("");
   $("#side").innerHTML=`<h3>快閃</h3>`+tree(null,0)+`<div class="sidebtns"><button class="btn sm" id="bNewEv">＋ 快閃</button><button class="btn sm" id="bNewFold">＋ 分類</button></div>`;
 }
 function renderEvent(){
@@ -1172,6 +1180,7 @@ function renderEvent(){
   $("#evInfo").hidden=!e.info;if(e.info)$("#evInfo").href=e.info;$("#evInfoEdit").textContent=e.info?"✎":"＋ 官方連結";
   $("#evMap").hidden=!mu;if(mu)$("#evMap").href=mu;$("#evMap").title=e.map?"在 Google 地圖打開":"用名稱在 Google 地圖搜尋（按 🔗 可以貼上正確的地圖連結）";
   const c=eventCalc(e);$("#evStat").textContent="";
+  $("#evDone").classList.toggle("on",!!e.done);$("#evDone").textContent=e.done?"✓ 已完成":"標為已完成";
   if(!["info","sum","trips","items"].includes(S.evTab))S.evTab="sum";
   const tp=e.trips.find(x=>x.id===evPick[e.id])||e.trips[e.trips.length-1];
   st.innerHTML=S.evTab==="info"?pageInfo(e):S.evTab==="items"?pageItems(e):pageList(e,S.evTab==="trips"?tp:null);
@@ -1559,6 +1568,7 @@ $("#evPlace").addEventListener("change",e=>{const x=ev();if(!x)return;const v=e.
   if(/^https?:\/\//i.test(v))commit(()=>{x.map=v});else commit(()=>{x.place=v})});
 $("#evInfoEdit").addEventListener("click",async()=>{const x=ev();if(!x)return;const v=await askText("官方活動資訊連結（官網、X、IG 公告等；留空＝移除）",x.info||"");if(v!==null)commit(()=>{x.info=v.trim()})});
 $("#evMapEdit").addEventListener("click",async()=>{const x=ev();if(!x)return;const v=await askText("Google 地圖連結（在 Google 地圖按「分享」→「複製連結」後貼上；留空＝用地點名稱搜尋）",x.map||"");if(v!==null)commit(()=>{x.map=v.trim()})});
+$("#evDone").addEventListener("click",()=>{const x=ev();if(x)commit(()=>{if(x.done)delete x.done;else x.done=true})});
 $("#evMore").addEventListener("click",e=>{const x=ev();if(!x)return;showMenu(e.currentTarget,[
   {label:"編輯連結",fn:async()=>{const v=await askText("連結（多個用空白分隔）",x.links.join(" "));if(v!==null)commit(()=>{x.links=v.split(/\s+/).filter(Boolean)})}},
   null,
