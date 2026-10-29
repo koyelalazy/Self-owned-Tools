@@ -349,7 +349,7 @@ table.ev th.col{white-space:normal;min-width:64px;max-width:90px}
 .lhead.info .cover .cw{position:relative;display:inline-block}
 .lhead.info .cover [data-coverdel]{position:absolute;top:6px;right:6px;border:0;border-radius:6px;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;width:26px;height:26px}
 .if-r{display:flex;gap:12px;padding:4px 0;align-items:baseline}.if-r>span{flex:none;width:64px;color:var(--muted);font-size:13px}.if-r a{color:var(--acc)}.if-r>div{min-width:0;overflow-wrap:anywhere}
-.igs{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}.ig-h{margin-top:4px}.ig{display:flex;gap:10px;align-items:center}.ig .thumb{margin:0}.ig b{display:block}.ig small{color:var(--muted)}
+.igs{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}.ig-h{margin-top:4px}.ig{display:flex;gap:10px;align-items:center}.ig .thumb{margin:0;flex:none}.ig>div{min-width:0;overflow-wrap:anywhere}.ig b{display:block}.ig small{color:var(--muted)}
 #evStage .gallery img{height:140px}#evStage .gallery .add{height:140px;width:120px}
 .evrow[data-info] {outline:2px solid var(--acc);outline-offset:-2px}
 .evc{cursor:pointer;padding:0 2px}
@@ -659,13 +659,17 @@ const growTa=t=>{if(!t.offsetParent)return;t.style.height="auto";t.style.height=
 const growNotes=()=>document.querySelectorAll(NOTE_TA).forEach(growTa);
 document.addEventListener("input",e=>{if(e.target.matches&&e.target.matches(NOTE_TA))growTa(e.target)});
 window.addEventListener("resize",growNotes);
+// fonts and late layout can change the text height after render, so measure again once things settle
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(growNotes);
+window.addEventListener("load",growNotes);
+if(window.ResizeObserver){let lastW=0;new ResizeObserver(en=>{const w=Math.round(en[0].contentRect.width);if(w!==lastW){lastW=w;growNotes()}}).observe(document.documentElement)}
 function render(){
   const ev=S.tab==="event";
   for(const b of $("#appTabs").children)b.setAttribute("aria-pressed",b.dataset.tab===S.tab);
   $("#eventView").hidden=!ev;$("#work").hidden=ev;
   document.querySelectorAll(".tradeOnly").forEach(x=>x.hidden=ev);
   $("#bUndo").disabled=!undoStack.length;$("#bRedo").disabled=!redoStack.length;renderMbar();
-  if(ev){renderEvSide();renderEvent();growNotes();return}
+  if(ev){renderEvSide();renderEvent();growNotes();requestAnimationFrame(growNotes);return}
   renderSide();renderToolbar();renderSettings();renderSheet();renderSel();
 }
 
