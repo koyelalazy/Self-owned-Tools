@@ -51,7 +51,7 @@ aside h3{margin:0 4px 4px;font-size:12px;color:var(--muted);font-weight:700}
 .ser.ended:not([aria-current="true"]){opacity:.62}
 .endtag,.donetag{white-space:nowrap}
 .endtag{display:inline-block;background:var(--muted);color:var(--paper);font-size:11px;font-weight:900;border-radius:999px;padding:0 7px;margin-right:5px;vertical-align:1px}
-#evDone.on{background:#2fae6b;border-color:#2fae6b;color:#fff;font-weight:700}
+#evDone{flex:none;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);cursor:pointer;opacity:.75}#evDone:hover{opacity:1;color:#2fae6b}#evDone.on{background:#2fae6b;color:#fff;opacity:1}
 .donetag{display:inline-block;background:#2fae6b;color:#fff;font-size:11px;font-weight:900;border-radius:999px;padding:0 7px;margin-right:5px;vertical-align:1px}
 #stat.done{background:#2fae6b;color:#fff}
 aside .btn{margin-top:4px}
@@ -144,7 +144,11 @@ tr.chrow td{background:var(--bg);padding:8px 10px 10px 60px;text-align:left}
 .chiprow{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}
 .chiprow button{flex:none;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:4px 12px;font:inherit;font-size:12.5px;color:var(--ink);cursor:pointer}
 .chiprow button[aria-current="true"]{background:var(--acc);border-color:var(--acc);color:#fff}
-@media (min-width:761px){.chiprow{display:none}}
+@media (min-width:761px){.chipbox{display:none}}
+.chipbox{position:sticky;top:-10px;z-index:6;margin:-10px -10px 10px;padding:8px 10px;background:var(--bg);border-bottom:1px solid var(--line)}
+.chipT{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:7px 12px;font:inherit;font-size:14px;color:var(--ink);cursor:pointer}
+.chipT span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}.chipT b{color:var(--ink)}.chipT i{font-style:normal;color:var(--muted)}
+.chipbox .chiprow{display:none;flex-wrap:wrap;overflow:visible;margin:8px 0 0}.chipbox.open .chiprow{display:flex}
 @media (max-width:760px){table.lst td.thc,table.lst th.thc,table.lst td.lm,table.lst th.lm{display:none}.lh-tot{min-width:0;width:100%}.lhead{position:static}.lwrap{overflow-x:auto}table.lst td,table.lst th{padding:6px}}
 .chtog{white-space:nowrap}
 table.lst.ed .ei{font:inherit;color:var(--ink);background:none;border:1px solid transparent;border-radius:6px;padding:3px 6px;width:100%;box-sizing:border-box}
@@ -439,8 +443,7 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
   #evTabs{order:5}
   #eventView .sp{order:6}
   #evStat{display:none}
-  #evDone{order:7;padding:5px 8px}
-  #evMore{order:8}
+  #evMore{order:1}#evMetaT{order:2}.evmeta{order:3}
   header{gap:4px;padding:6px 8px}
   header .btn{padding:4px 8px}
   header .lbl,#saveState{display:none}
@@ -472,6 +475,7 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
   <aside id="side"></aside>
   <section id="eventView" class="view" hidden>
     <div class="toolbar">
+      <button id="evDone" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M7.5 12.3l3 3 6-6.3"/></svg></button>
       <input type="text" id="evName" title="快閃名稱">
       <button class="mini" id="evMetaT" type="button" aria-expanded="false" title="期間、地點和連結">期間／地點 ▾</button>
       <span class="evmeta">
@@ -485,7 +489,6 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
       <span class="seg" id="evTabs"><button data-et="info">資訊</button><button data-et="items">品項</button><button data-et="sum">總表</button><button data-et="trips">購買紀錄</button></span>
       <span class="sp"></span>
       <span id="evStat"></span>
-      <button class="btn" id="evDone" title="標記這個快閃已經處理完（排到清單最後）">✓ 已完成</button>
       <button class="btn" id="evMore" title="更多">⋯</button>
     </div>
     <div id="evStage"></div>
@@ -702,6 +705,10 @@ function renderSide(){
 }
 const CHK_ICON='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg>';
 const MOVE_ICON='<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path fill="currentColor" d="M12 1.5l4 4.2h-2.6v4.9h4.9V8l4.2 4-4.2 4v-2.6h-4.9v4.9H16l-4 4.2-4-4.2h2.6v-4.9H5.7V16L1.5 12 5.7 8v2.6h4.9V5.7H8z"/></svg>';
+// the event title field is only as wide as its text, so the date/place row keeps its room
+let fitCv;function fitEvName(){const el=$("#evName");if(!el.offsetParent||matchMedia("(max-width:760px)").matches){el.style.width="";return}
+  fitCv=fitCv||document.createElement("canvas");const c=fitCv.getContext("2d"),cs=getComputedStyle(el);c.font=`${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  el.style.width=Math.min(340,Math.max(120,Math.ceil(c.measureText(el.value||el.placeholder||"").width)+28))+"px"}
 function renderToolbar(){
   const s=ser();
   if(document.activeElement!==$("#stName"))$("#stName").value=s.name;
@@ -1231,14 +1238,14 @@ function renderEvent(){
   const e=ev(),st=$("#evStage");
   for(const b of $("#evTabs").children)b.setAttribute("aria-pressed",b.dataset.et===(S.evTab||"sum"));
   if(!e){$("#evName").value="";st.innerHTML=`<p class="hint">還沒有快閃紀錄，按左邊「新增快閃」。</p>`;$("#evStat").textContent="";return}
-  if(document.activeElement!==$("#evName"))$("#evName").value=e.name;
+  if(document.activeElement!==$("#evName"))$("#evName").value=e.name;fitEvName();
   for(const [id,f] of [["#evStart","start"],["#evEnd","end"],["#evPlace","place"]])if(document.activeElement!==$(id))$(id).value=e[f]||"";
   // the map link uses the saved Google Maps link, or searches Google Maps for the place name
   const mu=e.map||(e.place&&!/線上|オンライン|online/i.test(e.place)?"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(e.place):"");
   $("#evInfo").hidden=!e.info;if(e.info)$("#evInfo").href=e.info;$("#evInfoEdit").textContent=e.info?"✎":"＋ 官方連結";
   $("#evMap").hidden=!mu;if(mu)$("#evMap").href=mu;$("#evMap").title=e.map?"在 Google 地圖打開":"用名稱在 Google 地圖搜尋（按 🔗 可以貼上正確的地圖連結）";
   const c=eventCalc(e);$("#evStat").textContent="";
-  $("#evDone").classList.toggle("on",!!e.done);$("#evDone").textContent=e.done?"✓ 已完成":"標為已完成";
+  $("#evDone").classList.toggle("on",!!e.done);$("#evDone").setAttribute("aria-pressed",!!e.done);$("#evDone").title=e.done?"已完成（再按一次取消）":"標為已完成（排到清單最後）";
   if(!["info","sum","trips","items"].includes(S.evTab))S.evTab="sum";
   const tp=e.trips.find(x=>x.id===evPick[e.id])||e.trips[e.trips.length-1];
   st.innerHTML=S.evTab==="info"?pageInfo(e):S.evTab==="items"?pageItems(e):pageList(e,S.evTab==="trips"?tp:null);
@@ -1366,12 +1373,13 @@ function giftLines(e,trips,one){
   return SCOPES.map(([sc,lbl])=>{const h=e.rules.filter(r=>r.scope===sc).map(line).join("");return h?`<div class="gscope">${lbl}</div>${h}`:""}).join("");
 }
 function gstepper(rid,vid,v){return`<span class="stp${v?" on":""}"><button data-gstep="${rid}|${vid}|-1" ${v?"":"disabled"} aria-label="減一">−</button><input inputmode="numeric" data-k="gq:${rid}:${vid}" value="${v||0}"><button data-gstep="${rid}|${vid}|1" aria-label="加一">＋</button></span>`}
+let chipOpen=false;// phone: the purchase switcher starts folded
 function pageList(e,t){
   if(t)evPick[e.id]=t.id;
   const kind=modeOf(e)?"全部":S.evSumKind||"全部",c=eventCalc(e,t?undefined:kind),trips=t?[t]:c.trips;
   const cur=t?t.cur:"TWD",only=!!S.tripOnly;
   // chips to switch purchase (small screens; the sidebar does this on wide screens)
-  const chips=`<div class="chiprow"><button data-gotrip="all" aria-current="${!t}">總表</button>${tripsSorted(e).map(x=>`<button data-gotrip="${x.id}" aria-current="${!!t&&x.id===t.id}">${esc(tripName(e,x))}</button>`).join("")}<button data-addtrip>＋</button></div>`;
+  const chips=`<div class="chipbox${chipOpen?" open":""}"><button class="chipT" data-chiptog aria-expanded="${chipOpen}"><span>${t?"購買紀錄：":""}<b>${esc(t?tripName(e,t):"總表")}</b></span><i>${chipOpen?"▴":"▾"}</i></button><div class="chiprow"><button data-gotrip="all" aria-current="${!t}">總表</button>${tripsSorted(e).map(x=>`<button data-gotrip="${x.id}" aria-current="${!!t&&x.id===t.id}">${esc(tripName(e,x))}</button>`).join("")}<button data-addtrip>＋ 新增</button></div></div>`;
   let head;
   if(t){
     const k=tripCalc(e,t);
@@ -1618,6 +1626,7 @@ $("#side").addEventListener("click",async e=>{
   if(e.target.id==="bNewEv")newEvIn(null);
 });
 $("#evTabs").addEventListener("click",e=>{const b=e.target.closest("[data-et]");if(!b)return;S.evTab=b.dataset.et;save();render()});
+$("#evName").addEventListener("input",fitEvName);
 $("#evName").addEventListener("change",e=>{const x=ev();if(x)commit(()=>{x.name=e.target.value.trim()||"未命名"})});
 $("#evStart").addEventListener("change",e=>{const x=ev();if(x)commit(()=>{x.start=e.target.value;if(x.end&&x.start>x.end)x.end=x.start})});
 $("#evEnd").addEventListener("change",e=>{const x=ev();if(x)commit(()=>{x.end=e.target.value})});
@@ -1703,7 +1712,8 @@ evStage.addEventListener("click",async e=>{
   const d=k=>t.closest(`[${k}]`);
   if(d("data-sk")){S.evSumKind=d("data-sk").dataset.sk;save();render();return}
   if(d("data-emode")){const m=d("data-emode").dataset.emode;commit(()=>{if(m)x.mode=m;else delete x.mode});return}
-  if(d("data-gotrip")){e.preventDefault();const g=d("data-gotrip").dataset.gotrip;if(g==="all")S.evTab="sum";else{evPick[x.id]=g;S.evTab="trips"}save();render();return}
+  if(d("data-chiptog")){e.preventDefault();chipOpen=!chipOpen;render();return}
+  if(d("data-gotrip")){e.preventDefault();chipOpen=false;const g=d("data-gotrip").dataset.gotrip;if(g==="all")S.evTab="sum";else{evPick[x.id]=g;S.evTab="trips"}save();render();return}
   if(d("data-addtrip")){addTrip(x);return}
   if(d("data-gstep")){const [rid,vid,dv]=d("data-gstep").dataset.gstep.split("|");const tr=x.trips.find(y=>y.id===evPick[x.id]);if(!tr)return;
     commit(()=>{tr.gotQ=tr.gotQ||{};const m=tr.gotQ[rid]=tr.gotQ[rid]||{};const n=Math.max(0,(m[vid]||0)+ +dv);if(n)m[vid]=n;else{delete m[vid];if(!Object.keys(m).length)delete tr.gotQ[rid]}});return}
