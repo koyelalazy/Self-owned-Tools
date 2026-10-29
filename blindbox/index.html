@@ -332,7 +332,7 @@ table.ev th.col{white-space:normal;min-width:64px;max-width:90px}
 .maplink[hidden]{display:none}
 .links{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .links a{font-size:12px;color:var(--acc);background:var(--acc-soft);border-radius:999px;padding:1px 10px;text-decoration:none;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#evNote{width:100%;min-height:34px;resize:vertical;margin-bottom:8px}
+#evNote{width:100%;min-height:34px;resize:vertical;overflow:hidden;box-sizing:border-box;margin-bottom:8px}
 .gallery{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;align-items:center}
 .gallery figure{margin:0;position:relative;flex:none}
 .gallery img{height:90px;border-radius:6px;display:block;cursor:zoom-in;box-shadow:0 1px 4px rgba(0,0,0,.2)}
@@ -348,7 +348,7 @@ table.ev th.col{white-space:normal;min-width:64px;max-width:90px}
 .lhead.info .cover .add{width:100%;height:200px;border:1px dashed var(--line);border-radius:10px;background:none;color:var(--muted);cursor:pointer;font-size:14px}
 .lhead.info .cover .cw{position:relative;display:inline-block}
 .lhead.info .cover [data-coverdel]{position:absolute;top:6px;right:6px;border:0;border-radius:6px;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;width:26px;height:26px}
-.if-r{display:flex;gap:12px;padding:4px 0;align-items:baseline}.if-r>span{flex:none;width:64px;color:var(--muted);font-size:13px}.if-r a{color:var(--acc)}
+.if-r{display:flex;gap:12px;padding:4px 0;align-items:baseline}.if-r>span{flex:none;width:64px;color:var(--muted);font-size:13px}.if-r a{color:var(--acc)}.if-r>div{min-width:0;overflow-wrap:anywhere}
 .igs{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}.ig-h{margin-top:4px}.ig{display:flex;gap:10px;align-items:center}.ig .thumb{margin:0}.ig b{display:block}.ig small{color:var(--muted)}
 #evStage .gallery img{height:140px}#evStage .gallery .add{height:140px;width:120px}
 .evrow[data-info] {outline:2px solid var(--acc);outline-offset:-2px}
@@ -432,6 +432,7 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
   body.sideOpen .view{display:none}
   #evMetaT{display:inline-block}
   #eventView .toolbar{padding:8px 10px;gap:6px}
+  #work .toolbar{gap:6px}#work .toolbar .btn{padding:4px 6px}#work .toolbar .sp{display:none}
   #evName{flex:1 1 auto;min-width:0;max-width:none;font-size:16px}
   body:not(.metaOpen) .evmeta{display:none}
   .evmeta{width:100%}
@@ -463,8 +464,6 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
   <span id="saveState"></span>
   <button class="btn" id="bUndo" title="復原 (Ctrl+Z)">↶</button>
   <button class="btn" id="bRedo" title="重做 (Ctrl+Y)">↷</button>
-  <button class="btn tradeOnly" id="bText">文字清單</button>
-  <button class="btn primary tradeOnly" id="bExport">匯出示意圖</button>
   <button class="btn" id="bMenu" title="備份、上傳／下載、雲端設定">⚙<span class="lbl"> 設定</span></button>
   <span class="gone"><button id="bBackup"></button><button id="bUp"></button><button id="bDown"></button><button id="bSync"></button></span>
 </header>
@@ -503,6 +502,8 @@ table.ev tr.rnd td.nm input{color:var(--acc)}
       <button class="btn" id="bBlank" title="沒有圖時先用名稱佔位">＋ 空白卡</button>
       <button class="btn" id="bAdd">＋ 加圖片</button>
       <button class="btn" id="bSet">⚙ 設定</button>
+      <button class="btn" id="bText">文字清單</button>
+      <button class="btn primary" id="bExport">匯出示意圖</button>
     </div>
     <div id="settings"></div>
     <div id="stage"><div id="sheet"></div></div>
@@ -650,13 +651,19 @@ const isLight=hex=>{const n=parseInt(hex.slice(1),16);return((n>>16)*299+((n>>8)
 const bgCSS=s=>s.bg;
 
 // ---------- render ----------
+// Note boxes grow to fit their text, so long notes stay readable after a restart.
+const NOTE_TA='textarea#evNote,textarea[data-k="t:note"]';
+const growTa=t=>{if(!t.offsetParent)return;t.style.height="auto";t.style.height=(t.scrollHeight+2)+"px"};
+const growNotes=()=>document.querySelectorAll(NOTE_TA).forEach(growTa);
+document.addEventListener("input",e=>{if(e.target.matches&&e.target.matches(NOTE_TA))growTa(e.target)});
+window.addEventListener("resize",growNotes);
 function render(){
   const ev=S.tab==="event";
   for(const b of $("#appTabs").children)b.setAttribute("aria-pressed",b.dataset.tab===S.tab);
   $("#eventView").hidden=!ev;$("#work").hidden=ev;
   document.querySelectorAll(".tradeOnly").forEach(x=>x.hidden=ev);
   $("#bUndo").disabled=!undoStack.length;$("#bRedo").disabled=!redoStack.length;renderMbar();
-  if(ev){renderEvSide();renderEvent();return}
+  if(ev){renderEvSide();renderEvent();growNotes();return}
   renderSide();renderToolbar();renderSettings();renderSheet();renderSel();
 }
 
