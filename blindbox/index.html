@@ -1166,7 +1166,7 @@ $("#fileJson").addEventListener("change",async e=>{
 // ---------- 快閃紀錄 ----------
 // An event keeps four separate things: 品項 (catalog), 購買紀錄 (one entry per day / online order),
 // 滿額贈 (gift rules) and 總表, which is computed from the purchases.
-const SEED_VERSION=0,SEED_VERSION_DESKTOP=43;
+const SEED_VERSION=0,SEED_VERSION_DESKTOP=44;
 // v2: Excel 商品目錄圖 + the user's two card trade images (marks recreated on top)
 const CUR={TWD:{sym:"NT$",rate:1,dp:0,name:"台幣"},USD:{sym:"US$",rate:32.5,dp:2,name:"美金"},JPY:{sym:"¥",rate:0.215,dp:0,name:"日幣"},KRW:{sym:"₩",rate:0.0235,dp:0,name:"韓幣"},CNY:{sym:"CN¥",rate:4.5,dp:2,name:"人民幣"}};
 const curOpts=sel=>Object.entries(CUR).map(([k,v])=>`<option value="${k}" ${k===sel?"selected":""}>${v.name} ${k}</option>`).join("");
