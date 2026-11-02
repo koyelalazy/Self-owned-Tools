@@ -164,6 +164,15 @@ dialog .two>label{min-width:0}
 .dpic{background:var(--img-bg);border-radius:12px;height:min(240px,34vh);display:grid;place-items:center;overflow:hidden}
 .dpic img{max-width:100%;max-height:100%;object-fit:contain}
 .vhead{position:relative;min-height:44px}
+#viewDlg{position:fixed;overflow:visible}
+#viewDlg form{max-height:calc(100dvh - 24px);overflow:auto;border-radius:18px;border:3px solid transparent}
+#viewDlg.mine form{border-color:var(--got)}
+.xbtn{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;display:grid;place-items:center;padding:0;z-index:2;cursor:pointer}
+.xbtn svg{width:18px;height:18px}
+.vhead:has(.dpic[hidden]) #v-next{right:44px}
+#v-mine{width:100%;height:52px;border-radius:14px;border:2px solid var(--line);background:none;color:var(--muted);display:grid;place-items:center;margin-top:4px}
+#v-mine svg{width:30px;height:30px}
+#v-mine[aria-pressed="true"]{background:var(--got);border-color:var(--got);color:#fff}
 .dnav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.92);color:#5a4450;font-size:30px;line-height:1;padding:0 0 4px;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;z-index:1}
 .dnav:focus:not(:focus-visible){outline:none}
 #v-prev{left:6px}
@@ -281,11 +290,9 @@ html:not(.ro) .ro-only{display:none!important}
       <button type="button" class="dnav" id="v-next" title="下一個" aria-label="下一個">›</button></div>
     <p class="dname" id="v-name"></p>
     <dl class="kv" id="v-kv"></dl>
-    <div class="acts2">
-      <button type="button" class="btn" data-close>關閉</button>
-      <button type="button" class="btn primary" id="v-mine">✓ 我買了</button>
-    </div>
+    <button type="button" id="v-mine" title="我買了" aria-label="我買了" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/><path d="M9.2 14l2 2 3.6-3.8"/></svg></button>
   </form>
+  <button type="button" class="xbtn" data-close title="關閉" aria-label="關閉"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
 </dialog>
 
 <dialog id="shareDlg">
@@ -563,7 +570,7 @@ function showView(i){
   const need=needVars(i).map(v=>v.n).join("、");
   const rows=[["還缺",need],["IP",ipOf(i)],["類型",typeOf(i)],["地區",i.reg],["哪裡買",i.shop],["參考價格",i.price],["數量",+i.qty>1?i.qty+" 個":""],["說明",i.note]].filter(r=>r[1]);
   $("#v-kv").innerHTML=(i.prio?`<dt>♥</dt><dd style="color:var(--heart);font-weight:700">特別想要</dd>`:"")+rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")+(link?`<dt>連結</dt><dd><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">打開商品頁 ↗</a></dd>`:"");
-  const upd=()=>{const on=mine.has(i.id);$("#v-mine").textContent=on?"取消「我買了」":"✓ 我買了";$("#v-mine").className="btn "+(on?"":"primary")};
+  const upd=()=>{const on=mine.has(i.id);$("#v-mine").setAttribute("aria-pressed",on);$("#v-mine").title=on?"我買了（再按一下取消）":"我買了";$("#viewDlg").classList.toggle("mine",on)};
   $("#v-mine").onclick=()=>{toggleMine(i.id);upd()};upd();
 }
 function toggleMine(id){mine.has(id)?mine.delete(id):mine.add(id);ls.set(MINE_KEY,JSON.stringify([...mine]));render()}
