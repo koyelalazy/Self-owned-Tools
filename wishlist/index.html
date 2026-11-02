@@ -414,8 +414,11 @@ document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>b.closest("di
 /* ---------- data ---------- */
 // item: {id,name,pick,ip,type,reg,shop,price,qty,img,link,note,memo,prio,opt (1 = 非必要: only to complete a set, not needed),st:"want"|"got"|"drop",by,at}
 const DATA_KEY="wishlist-data",VIEW_KEY="wishlist-view",DIRTY_KEY="wishlist-dirty",SHA_KEY="wishlist-gh-sha",ME_KEY="wishlist-share";
-let items=[];
-try{const d=JSON.parse(ls.get(DATA_KEY)||"null");if(d&&Array.isArray(d.items))items=d.items}catch(e){}
+let items=[],custom={ips:[],types:[]};
+/* user-added IP / 類型 names travel with the list (local data, backup file and the private data repo) */
+const setCustom=d=>{custom={ips:Array.isArray(d&&d.ips)?d.ips:[],types:Array.isArray(d&&d.types)?d.types:[]}};
+const dataObj=(savedAt=new Date().toISOString())=>({items,ips:custom.ips,types:custom.types,savedAt});
+try{const d=JSON.parse(ls.get(DATA_KEY)||"null");if(d&&Array.isArray(d.items)){items=d.items;setCustom(d)}}catch(e){}
 let view={st:"want",lv:"all",sort:"at",reg:"all",ip:"all",type:"all",q:""};
 try{Object.assign(view,JSON.parse(ls.get(VIEW_KEY)||"{}"),{q:""})}catch(e){}
 
@@ -468,7 +471,11 @@ function matrixHTML(arr){
 /* ---------- categories (sections, like the tabs/headers in the old sheet) and countries (filter) ---------- */
 const regOf=i=>(i.reg||"").trim()||"未填地區";
 // IP and 類型 are fixed lists; older items had one free-text cat like "TWICE 扭蛋", read once into ip/type.
-const IPS=["TWICE","寶可夢","吉伊卡哇","自嘲熊","其他"],TYPES=["娃娃","扭蛋","泡澡球","食玩","一番賞","鐵牌","其他"];
+const IP0=["TWICE","寶可夢","吉伊卡哇","自嘲熊","其他"],TYPE0=["娃娃","扭蛋","泡澡球","食玩","一番賞","鐵牌","其他"];
+let IPS=IP0.slice(),TYPES=TYPE0.slice();
+/* lists = built-in names, then the user's own additions, then any name already used by an item (e.g. in a friend's shared copy); 其他 stays last */
+function refreshLists(){const mk=(base,extra,vals)=>{const o=base.filter(x=>x!=="其他");[...extra,...vals].forEach(v=>{v=String(v||"").trim();if(v&&v!=="其他"&&!o.includes(v))o.push(v)});o.push("其他");return o};
+  IPS=mk(IP0,custom.ips,items.map(i=>i.ip));TYPES=mk(TYPE0,custom.types,items.map(i=>i.type))}
 function norm(i){
   if(i.cat!==undefined&&i.ip===undefined&&i.type===undefined){const c=i.cat||"";i.ip=IPS.find(x=>c.includes(x))||(/ポケモン|pokemon|皮卡丘/i.test(c)?"寶可夢":/ちいかわ|吉伊/.test(c)?"吉伊卡哇":"其他");i.type=TYPES.find(x=>c.includes(x))||"其他"}
   delete i.cat;return i;
@@ -484,7 +491,7 @@ function regOrder(list){
 }
 
 /* ---------- render ---------- */
-function persist(){ls.set(DATA_KEY,JSON.stringify({items,savedAt:new Date().toISOString()}));ls.set(DIRTY_KEY,"1");setSyncUI()}
+function persist(){ls.set(DATA_KEY,JSON.stringify(dataObj()));ls.set(DIRTY_KEY,"1");setSyncUI()}
 function saveView(){ls.set(RO?VIEW_KEY+"-ro":VIEW_KEY,JSON.stringify({st:view.st,lv:view.lv,sort:view.sort,reg:view.reg,ip:view.ip,type:view.type}))}
 const matchQ=i=>{const q=view.q.trim().toLowerCase();if(!q)return true;return [i.name,i.pick,(i.vars||[]).map(v=>v.n).join(" "),i.ip,i.type,i.reg,i.shop,i.note,i.memo,i.price].some(v=>String(v||"").toLowerCase().includes(q))};
 const matchSt=i=>RO?(view.st==="all"||(view.st==="mine")===mine.has(i.id)):(view.st==="all"||i.st===view.st);
@@ -525,7 +532,7 @@ function applyCols(){
 $("#colSel").onchange=e=>{ls.set(COLS_KEY,e.target.value);applyCols()};
 addEventListener("resize",applyCols);applyCols();
 function render(){
-  items.forEach(norm);
+  items.forEach(norm);refreshLists();
   const base=items.filter(i=>matchSt(i)&&(view.lv==="all"||String(lvOf(i))===view.lv));
   const pool=RO?items:items.filter(i=>view.st==="all"||i.st===view.st);
   const cats=catOrder(pool),regs=regOrder(pool),ips=usedIn(pool,IPS,ipOf),types=usedIn(pool,TYPES,typeOf);
@@ -605,13 +612,22 @@ function showPic(box,url){url=safeUrl(url);box.hidden=!url;box.innerHTML=url?`<i
 function openEdit(it){
   editing=it||null;const i=it||{st:"want",ip:view.ip!=="all"?view.ip:"",type:view.type!=="all"?view.type:"",reg:view.reg!=="all"&&view.reg!=="未填地區"?view.reg:(ls.get("wishlist-lastreg")||"")};
   $("#e-h").textContent=it?"編輯":"新增想要的東西";
-  $("#e-name").value=i.name||"";$("#e-pick").value=i.pick||"";$("#e-ip").value=IPS.includes(i.ip)?i.ip:(it?"其他":"");$("#e-type").value=TYPES.includes(i.type)?i.type:(it?"其他":"");$("#e-reg").value=i.reg||"";$("#e-shop").value=i.shop||"";$("#e-price").value=i.price||"";
+  fillCatSel();$("#e-name").value=i.name||"";$("#e-pick").value=i.pick||"";$("#e-ip").value=IPS.includes(i.ip)?i.ip:(it?"其他":"");$("#e-type").value=TYPES.includes(i.type)?i.type:(it?"其他":"");$("#e-reg").value=i.reg||"";$("#e-shop").value=i.shop||"";$("#e-price").value=i.price||"";
   $("#e-qty").value=+i.qty>0?+i.qty:"";$("#e-img").value=i.img||"";$("#e-link").value=i.link||"";$("#e-note").value=i.note||"";$("#e-memo").value=i.memo||"";
   editVars=(i.vars||[]).map(v=>({...v}));drawVars();$("#e-vadd").value="";$("#e-st").value=i.st||"want";$("#e-lv").value=i.prio?"2":i.opt?"0":"1";$("#e-by").value=i.by||"";$("#e-by-l").hidden=$("#e-st").value!=="got";
   $("#e-del").hidden=!it;showPic($("#e-pic"),i.img);$("#editDlg").showModal();if(!it)$("#e-name").focus();
 }
-$("#e-ip").innerHTML=`<option value="" disabled>選 IP</option>`+IPS.map(x=>`<option>${x}</option>`).join("");
-$("#e-type").innerHTML=`<option value="" disabled>選類型</option>`+TYPES.map(x=>`<option>${x}</option>`).join("");
+function fillCatSel(){refreshLists();
+  for(const [id,arr,lbl] of [["#e-ip",IPS,"IP"],["#e-type",TYPES,"類型"]]){const el=$(id),cur=el.value;
+    el.innerHTML=`<option value="" disabled>選${lbl}</option>`+arr.map(x=>`<option>${esc(x)}</option>`).join("")+`<option value="__new">＋ 新增${lbl}…</option>`;el.value=arr.includes(cur)?cur:"";el.dataset.prev=el.value}}
+fillCatSel();
+for(const [id,key,lbl] of [["#e-ip","ips","IP"],["#e-type","types","類型"]]){const el=$(id);
+  el.addEventListener("focus",()=>{if(el.value!=="__new")el.dataset.prev=el.value});
+  el.addEventListener("change",()=>{if(el.value!=="__new"){el.dataset.prev=el.value;return}
+    const n=(prompt(`新的${lbl}名稱`)||"").trim().replace(/・/g," ");
+    if(!n){el.value=el.dataset.prev||"";return}
+    if(!(key==="ips"?IPS:TYPES).includes(n)){custom[key].push(n);persist()}
+    fillCatSel();el.value=n;el.dataset.prev=n})}
 $("#e-st").onchange=()=>{$("#e-by-l").hidden=$("#e-st").value!=="got"};
 $("#e-img").oninput=()=>showPic($("#e-pic"),$("#e-img").value.trim());
 $("#e-save").onclick=()=>{
@@ -770,7 +786,7 @@ $("#menuBtn").onclick=e=>{e.stopPropagation();const h=!$("#menu").hidden;$("#men
 document.addEventListener("click",e=>{if(!e.target.closest(".menuwrap"))closeMenu()});
 $("#m-export").onclick=()=>{
   closeMenu();const d=new Date(),s=d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
-  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify({items,savedAt:d.toISOString()},null,1)],{type:"application/json"}));
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(dataObj(d.toISOString()),null,1)],{type:"application/json"}));
   a.download=`代購願望清單-${s}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 };
 $("#m-import").onclick=()=>{closeMenu();$("#importFile").click()};
@@ -781,10 +797,11 @@ $("#importFile").onchange=async e=>{
   if(d.append&&items.length){
     const key=i=>(i.name||"")+"|"+(i.link||""),have=new Set(items.map(key)),add=d.items.filter(i=>!have.has(key(i)));
     if(!confirm(`把 ${add.length} 項加進目前的清單？`+(d.items.length-add.length?`（${d.items.length-add.length} 項已經有了，會略過）`:"")))return;
-    const t=Date.now();add.forEach((i,k)=>items.push({...i,id:uid()+k,at:t+k}));persist();render();toast(`已加入 ${add.length} 項`);return;
+    const t=Date.now();add.forEach((i,k)=>items.push({...i,id:uid()+k,at:t+k}));
+    setCustom({ips:[...new Set([...custom.ips,...(d.ips||[])])],types:[...new Set([...custom.types,...(d.types||[])])]});persist();render();toast(`已加入 ${add.length} 項`);return;
   }
   if(!confirm(`用備份檔的 ${d.items.length} 項取代這台的 ${items.length} 項？`))return;
-  items=d.items;persist();render();toast("已匯入");
+  items=d.items;setCustom(d);persist();render();toast("已匯入");
 };
 
 /* ---------- GitHub: manual ⬆ upload / ⬇ download only, never automatic, never merged ---------- */
@@ -800,7 +817,7 @@ async function gh(method,body){
   if(!r.ok){const e=new Error(r.status===401?"金鑰無效或過期":r.status===403?"金鑰沒有這個儲存庫的權限":r.status===404?"找不到儲存庫":r.status===409||r.status===422?"conflict":"GitHub 回應 "+r.status);e.status=r.status;throw e}
   return r.json();
 }
-async function getRemote(){const r=await gh("GET");if(!r)return null;const d=JSON.parse(b64dec(r.content));return {sha:r.sha,items:Array.isArray(d.items)?d.items:[],savedAt:d.savedAt}}
+async function getRemote(){const r=await gh("GET");if(!r)return null;const d=JSON.parse(b64dec(r.content));return {sha:r.sha,items:Array.isArray(d.items)?d.items:[],ips:d.ips,types:d.types,savedAt:d.savedAt}}
 const cntTxt=a=>`${a.length} 項（想要 ${a.filter(i=>i.st==="want").length}）`;
 function setSyncUI(state){
   const on=!!syncCfg,dirty=ls.get(DIRTY_KEY)==="1";
@@ -819,7 +836,7 @@ async function uploadNow(){
     const other=r&&ls.get(SHA_KEY)!==r.sha,less=r&&r.items.length>items.length;
     const msg=(other?"⚠ 雲端在你上次上傳或下載之後，被其他裝置改過了。\n":"")+(r?`雲端：${cntTxt(r.items)}\n`:"")+`這台：${cntTxt(items)}\n確定用這台的清單取代雲端？`;
     if(!confirm(msg)){syncBusy="";setSyncUI();return}
-    const res=await gh("PUT",{message:"wishlist upload "+new Date().toISOString(),content:b64enc(JSON.stringify({items,savedAt:new Date().toISOString()},null,1)),...(r?{sha:r.sha}:{})});
+    const res=await gh("PUT",{message:"wishlist upload "+new Date().toISOString(),content:b64enc(JSON.stringify(dataObj(),null,1)),...(r?{sha:r.sha}:{})});
     ls.set(SHA_KEY,res.content.sha);ls.set(DIRTY_KEY,null);lastSync=Date.now();lastDir="up";syncErr="";syncBusy="";setSyncUI();toast("已上傳到雲端");
   }catch(e){syncBusy="";syncErr=e.message==="conflict"?"雲端剛好被其他裝置改了，請再按一次":e.message||String(e);setSyncUI("err");toast("上傳失敗："+syncErr)}
 }
@@ -831,7 +848,7 @@ async function downloadNow(){
     if(!r){syncBusy="";setSyncUI();toast("雲端還沒有清單，請先從有資料的裝置上傳");return}
     const msg=`用雲端的清單取代這台的清單？\n雲端：${cntTxt(r.items)}\n這台：${cntTxt(items)}`+(ls.get(DIRTY_KEY)==="1"?"\n⚠ 這台有還沒上傳的修改，下載後會不見。":"");
     if(!confirm(msg)){syncBusy="";setSyncUI();return}
-    items=r.items;ls.set(DATA_KEY,JSON.stringify({items,savedAt:r.savedAt||new Date().toISOString()}));
+    items=r.items;setCustom(r);ls.set(DATA_KEY,JSON.stringify(dataObj(r.savedAt||new Date().toISOString())));
     ls.set(SHA_KEY,r.sha);ls.set(DIRTY_KEY,null);lastSync=Date.now();lastDir="down";syncErr="";syncBusy="";render();setSyncUI();toast("已從雲端下載");
   }catch(e){syncBusy="";syncErr=e.message||String(e);setSyncUI("err");toast("下載失敗："+syncErr)}
 }
