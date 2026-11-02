@@ -258,6 +258,10 @@ html:not(.ro) .ro-only{display:none!important}
           <div class="flist ro-only" id="roFilter">
             <button data-v="all">全部</button><button data-v="todo">還沒買</button><button data-v="mine">我買了</button>
           </div>
+          <p class="fh">想要程度</p>
+          <div class="flist" id="lvFilter">
+            <button data-v="all">全部</button><button data-v="2">必買</button><button data-v="1">想要</button><button data-v="0">非必要</button>
+          </div>
           <p class="fh">每排幾個</p>
           <select id="colSel" class="colsel"><option value="1">每排 1 個</option><option value="2">每排 2 個</option><option value="3">每排 3 個</option><option value="4">每排 4 個</option></select>
         </div>
@@ -384,7 +388,7 @@ document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>b.closest("di
 const DATA_KEY="wishlist-data",VIEW_KEY="wishlist-view",DIRTY_KEY="wishlist-dirty",SHA_KEY="wishlist-gh-sha",ME_KEY="wishlist-share";
 let items=[];
 try{const d=JSON.parse(ls.get(DATA_KEY)||"null");if(d&&Array.isArray(d.items))items=d.items}catch(e){}
-let view={st:"want",reg:"all",ip:"all",type:"all",q:""};
+let view={st:"want",lv:"all",reg:"all",ip:"all",type:"all",q:""};
 try{Object.assign(view,JSON.parse(ls.get(VIEW_KEY)||"{}"),{q:""})}catch(e){}
 
 /* ---------- share link: the shared items travel compressed in the URL fragment (never sent to any server) ---------- */
@@ -453,7 +457,7 @@ function regOrder(list){
 
 /* ---------- render ---------- */
 function persist(){ls.set(DATA_KEY,JSON.stringify({items,savedAt:new Date().toISOString()}));ls.set(DIRTY_KEY,"1");setSyncUI()}
-function saveView(){if(!RO)ls.set(VIEW_KEY,JSON.stringify({st:view.st,reg:view.reg,ip:view.ip,type:view.type}))}
+function saveView(){if(!RO)ls.set(VIEW_KEY,JSON.stringify({st:view.st,lv:view.lv,reg:view.reg,ip:view.ip,type:view.type}))}
 const matchQ=i=>{const q=view.q.trim().toLowerCase();if(!q)return true;return [i.name,i.pick,(i.vars||[]).map(v=>v.n).join(" "),i.ip,i.type,i.reg,i.shop,i.note,i.memo,i.price].some(v=>String(v||"").toLowerCase().includes(q))};
 const matchSt=i=>RO?(view.st==="all"||(view.st==="mine")===mine.has(i.id)):(view.st==="all"||i.st===view.st);
 const sortItems=a=>a.slice().sort((x,y)=>(x.at||0)-(y.at||0));
@@ -494,7 +498,7 @@ $("#colSel").onchange=e=>{ls.set(COLS_KEY,e.target.value);applyCols()};
 addEventListener("resize",applyCols);applyCols();
 function render(){
   items.forEach(norm);
-  const base=items.filter(matchSt);
+  const base=items.filter(i=>matchSt(i)&&(view.lv==="all"||String(lvOf(i))===view.lv));
   const pool=RO?items:items.filter(i=>view.st==="all"||i.st===view.st);
   const cats=catOrder(pool),regs=regOrder(pool),ips=usedIn(pool,IPS,ipOf),types=usedIn(pool,TYPES,typeOf);
   const inReg=i=>view.reg==="all"||regOf(i)===view.reg,inIp=i=>view.ip==="all"||ipOf(i)===view.ip,inType=i=>view.type==="all"||typeOf(i)===view.type;
@@ -504,8 +508,10 @@ function render(){
   chipRow($("#regChips"),"reg","全部地區",regs,k=>base.filter(i=>inCat(i)&&(k==="all"||regOf(i)===k)).length);
   document.querySelectorAll(`#${RO?"roFilter":"stFilter"} button`).forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===view.st));
   const lbl=$(`#${RO?"roFilter":"stFilter"} button[data-v="${view.st}"]`);
-  $("#fltDot").hidden=view.st===(RO?"all":"want");$("#fltBtn").title="篩選："+(lbl?lbl.textContent:"")+"（點一下切換）";
-  $("#q").placeholder=(view.st===(RO?"all":"want")?"":"【"+(lbl?lbl.textContent:"")+"】")+"搜尋名稱、款式、店家、說明";
+  document.querySelectorAll("#lvFilter button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===view.lv));
+  const tags=[view.st===(RO?"all":"want")?"":(lbl?lbl.textContent:""),view.lv==="all"?"":LV[+view.lv][0]].filter(Boolean);
+  $("#fltDot").hidden=!tags.length;$("#fltBtn").title="篩選："+(tags.join("・")||"全部")+"（點一下切換）";
+  $("#q").placeholder=(tags.length?"【"+tags.join("・")+"】":"")+"搜尋名稱、款式、店家、說明";
   const list=sortItems(base.filter(i=>inReg(i)&&inCat(i)&&matchQ(i)));
   const groups=new Map();cats.forEach(c=>groups.set(c,[]));list.forEach(i=>{const c=catOf(i);if(!groups.has(c))groups.set(c,[]);groups.get(c).push(i)});
   let html="";
@@ -533,6 +539,7 @@ function render(){
 document.querySelector(".bar").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;view[b.dataset.k]=b.dataset.v;saveView();render()});
 $("#stFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;saveView();render();closeFlt()};
 $("#roFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;render();closeFlt()};
+$("#lvFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.lv=b.dataset.v;saveView();render();closeFlt()};
 function closeFlt(){$("#fltPop").hidden=true;$("#fltBtn").setAttribute("aria-expanded","false")}
 $("#fltBtn").onclick=e=>{e.stopPropagation();const open=$("#fltPop").hidden;$("#fltPop").hidden=!open;$("#fltBtn").setAttribute("aria-expanded",String(open))};
 document.addEventListener("click",e=>{if(!e.target.closest(".qwrap"))closeFlt()});
@@ -847,7 +854,7 @@ $("#s-off").onclick=()=>{
     // collapsed by default so the items come first; the friend's choice is remembered
     $("#roBanner").innerHTML=`<details${ls.get("wishlist-help")==="open"?" open":""}><summary>謝謝你願意幫忙帶東西 🙏</summary><span class="msg">點商品看詳細和連結。買了就按「我買了」（只記在你的手機上），最後按下面的「告訴對方」把清單傳回去。標 ♥ 的是必買，標「非必要」的有看到再買就好。</span></details>${shared.m?`<span class="own">${esc(shared.m)}</span>`:""}`;
     $("#roBanner details").addEventListener("toggle",e=>ls.set("wishlist-help",e.target.open?"open":"closed"));
-    view={st:"all",reg:"all",ip:"all",type:"all",q:""};
+    view={st:"all",lv:"all",reg:"all",ip:"all",type:"all",q:""};
   }else if(/^#sync=/.test(location.hash)){importSetup(location.hash);history.replaceState(null,"",location.pathname+location.search)}
   render();if(!RO)setSyncUI();
 })();
