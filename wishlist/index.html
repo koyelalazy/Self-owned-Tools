@@ -528,7 +528,9 @@ function render(){
   $("#sortDot").hidden=view.sort==="at";$("#sortBtn").title="排序："+$(`#sortFilter button[data-v="${view.sort}"]`)?.textContent||"";
   const groups=new Map();cats.forEach(c=>groups.set(c,[]));list.forEach(i=>{const c=catOf(i);if(!groups.has(c))groups.set(c,[]);groups.get(c).push(i)});
   let html="";
-  for(const [c,arr] of groups){if(!arr.length)continue;
+  /* friends already pick IP/類型 with the chips at the top, so their view is one grid without section headers */
+  if(RO){const all=[...groups.values()].flat();if(all.length)html=`<div class="grid">${all.map(cardHTML).join("")}</div>`}
+  else for(const [c,arr] of groups){if(!arr.length)continue;
     const canT=arr.filter(hasVars).length>1,isT=canT&&tables.has(c);
     html+=`<section><h2>${esc(c)}${canT?`<button class="tbtn" data-t="${esc(c)}">${isT?"看大圖":"看表格"}</button>`:""}<span class="cnt">${arr.length} 項</span></h2>${isT?matrixHTML(arr):`<div class="grid">${arr.map(cardHTML).join("")}</div>`}</section>`}
   if(!html){
