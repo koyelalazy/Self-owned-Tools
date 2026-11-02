@@ -77,7 +77,17 @@ section h2 .cnt{margin-left:auto;font-size:13px;font-weight:500;color:var(--mute
 .card.prio{border:2px solid var(--heart)}
 .card.got,.card.drop{opacity:.6}
 .card.mine{border-color:var(--got);box-shadow:0 0 0 1px var(--got) inset}
-.card .head{padding:8px 12px;background:var(--accent-soft);display:flex;flex-direction:column;gap:2px}
+.card .head{padding:8px 12px;background:var(--accent-soft);display:flex;align-items:flex-start;gap:8px}
+.card .head .ti{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.hbtn{flex:none;width:32px;height:32px;border-radius:50%;border:0;background:none;color:var(--muted);display:grid;place-items:center;padding:0;margin:-3px 0 -3px -6px}
+.hbtn svg{width:22px;height:22px;fill:none}
+.hbtn[aria-pressed="true"]{color:var(--heart)}
+.hbtn[aria-pressed="true"] svg{fill:currentColor}
+.ro .hbtn{pointer-events:none}
+.mvbtns{flex:none;display:flex;gap:2px;margin:-3px -6px -3px 0}
+.mvbtns button{width:30px;height:30px;border-radius:8px;border:0;background:none;color:var(--muted);display:grid;place-items:center;padding:0}
+.mvbtns button:hover,.hbtn:hover{background:var(--paper)}
+.mvbtns svg{width:18px;height:18px}
 .card .nm{font-size:15px;font-weight:700;line-height:1.4}
 .card .pick{color:#d4252b;font-weight:700}
 .card .lnk{font-size:13px;color:#2a63c9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:underline}
@@ -227,15 +237,12 @@ html:not(.ro) .ro-only{display:none!important}
     <div><p class="hint" style="margin-bottom:6px">款式收集（可空白）：點一下切換「還缺／已有」，朋友會看到還缺哪幾款</p>
       <div id="e-vars"></div>
       <div class="vadd" style="margin-top:6px"><input id="e-vadd" placeholder="加一款，例如：皮卡丘" autocomplete="off"><button type="button" class="btn" id="e-vaddb">加</button><button type="button" class="btn" id="e-twice">套用 TWICE 9人</button></div></div>
-    <label class="inline"><input type="checkbox" id="e-prio"> ♥ 特別想要</label>
     <div class="two">
       <label>狀態<select id="e-st"><option value="want">想要</option><option value="got">已入手</option><option value="drop">不要了</option></select></label>
       <label id="e-by-l">誰幫忙帶的<input id="e-by" placeholder="例如：小美 2026/11" autocomplete="off"></label>
     </div>
     <div class="acts2">
       <button type="button" class="btn danger" id="e-del" hidden>刪除</button>
-      <button type="button" class="btn" id="e-up" hidden title="在同分類裡往前移">↑ 往前</button>
-      <button type="button" class="btn" id="e-down" hidden title="在同分類裡往後移">↓ 往後</button>
       <button type="button" class="btn" data-close>取消</button>
       <button type="button" class="btn primary" id="e-save">儲存</button>
     </div>
@@ -391,10 +398,11 @@ function cardHTML(i){
   const cls=["card",allHave(i)?"done":"",i.prio&&i.st==="want"?"prio":"",!RO&&i.st!=="want"?i.st:"",isMine?"mine":""].filter(Boolean).join(" ");
   const sub=[i.shop?"📍 "+esc(i.shop):"",i.price?esc(i.price):"",!RO&&i.st==="got"&&i.by?"託 "+esc(i.by):""].filter(Boolean).join("　");
   return `<div class="${cls}" data-id="${esc(i.id)}" role="button" tabindex="0">
-    <div class="head"><div class="nm">${esc(i.name||"（沒有名稱）")}${i.pick?` <span class="pick">(${esc(i.pick)})</span>`:""}</div>
+    <div class="head">${!RO||i.prio?`<button type="button" class="hbtn" aria-pressed="${!!i.prio}" title="${i.prio?"特別想要（再按一下取消）":"標成特別想要"}"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7.5-4.6-9.5-9.3C1.1 8.3 3.3 4.5 7 4.5c2.1 0 3.6 1.1 5 2.9 1.4-1.8 2.9-2.9 5-2.9 3.7 0 5.9 3.8 4.5 7.2C19.5 16.4 12 21 12 21z"/></svg></button>`:""}
+      <div class="ti"><div class="nm">${esc(i.name||"（沒有名稱）")}${i.pick?` <span class="pick">(${esc(i.pick)})</span>`:""}</div>
       ${link?`<a class="lnk" href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(shortUrl(link))}</a>`:""}</div>
+      ${RO?"":`<div class="mvbtns"><button type="button" class="b-up" title="往前移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button><button type="button" class="b-down" title="往後移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button></div>`}</div>
     <div class="pic">${img?`<img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'🎁'}))">`:`<span class="ph">🎁</span>`}
-      ${i.prio&&i.st==="want"?`<span class="badge">♥ 特別想要</span>`:""}
       ${!RO&&i.st!=="want"?`<span class="badge st ${i.st}">${i.st==="got"?"✓ 已入手":"不要了"}</span>`:""}
       ${+i.qty>1?`<span class="badge qty">×${+i.qty}</span>`:""}</div>
     <div class="body">${varsHTML(i)}${sub?`<div class="meta">${sub}</div>`:""}${i.note?`<div class="nt">${esc(i.note)}</div>`:""}${RO?`<div class="acts"><button type="button" class="b-mine" aria-pressed="${isMine}">${isMine?"✓ 我買了":"我買了"}</button></div>`:""}</div></div>`;
@@ -450,6 +458,9 @@ $("#list").addEventListener("click",e=>{
   const card=e.target.closest(".card,tr[data-id]");if(!card)return;
   const it=items.find(i=>i.id===card.dataset.id);if(!it)return;
   if(e.target.closest(".b-mine")){toggleMine(it.id);return}
+  if(!RO&&e.target.closest(".hbtn")){it.prio=!it.prio;persist();render();toast(it.prio?"♥ 標成特別想要":"取消特別想要");return}
+  if(!RO&&e.target.closest(".b-up")){moveItem(it,-1);return}
+  if(!RO&&e.target.closest(".b-down")){moveItem(it,1);return}
   RO?openView(it):openEdit(it);
 });
 $("#list").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList.contains("card"))e.target.click()});
@@ -468,8 +479,8 @@ function openEdit(it){
   $("#e-h").textContent=it?"編輯":"新增想要的東西";
   $("#e-name").value=i.name||"";$("#e-pick").value=i.pick||"";$("#e-ip").value=IPS.includes(i.ip)?i.ip:(it?"其他":"");$("#e-type").value=TYPES.includes(i.type)?i.type:(it?"其他":"");$("#e-reg").value=i.reg||"";$("#e-shop").value=i.shop||"";$("#e-price").value=i.price||"";
   $("#e-qty").value=+i.qty>1?i.qty:"";$("#e-img").value=i.img||"";$("#e-link").value=i.link||"";$("#e-note").value=i.note||"";$("#e-memo").value=i.memo||"";
-  editVars=(i.vars||[]).map(v=>({...v}));drawVars();$("#e-vadd").value="";$("#e-prio").checked=!!i.prio;$("#e-st").value=i.st||"want";$("#e-by").value=i.by||"";$("#e-by-l").hidden=$("#e-st").value!=="got";
-  $("#e-del").hidden=$("#e-up").hidden=$("#e-down").hidden=!it;showPic($("#e-pic"),i.img);$("#editDlg").showModal();if(!it)$("#e-name").focus();
+  editVars=(i.vars||[]).map(v=>({...v}));drawVars();$("#e-vadd").value="";$("#e-st").value=i.st||"want";$("#e-by").value=i.by||"";$("#e-by-l").hidden=$("#e-st").value!=="got";
+  $("#e-del").hidden=!it;showPic($("#e-pic"),i.img);$("#editDlg").showModal();if(!it)$("#e-name").focus();
 }
 $("#e-ip").innerHTML=`<option value="" disabled>選 IP</option>`+IPS.map(x=>`<option>${x}</option>`).join("");
 $("#e-type").innerHTML=`<option value="" disabled>選類型</option>`+TYPES.map(x=>`<option>${x}</option>`).join("");
@@ -478,7 +489,7 @@ $("#e-img").oninput=()=>showPic($("#e-pic"),$("#e-img").value.trim());
 $("#e-save").onclick=()=>{
   const name=$("#e-name").value.trim();if(!name){toast("請填名稱");$("#e-name").focus();return}
   const v={name,pick:$("#e-pick").value.trim(),ip:$("#e-ip").value||"其他",type:$("#e-type").value||"其他",reg:$("#e-reg").value.trim(),shop:$("#e-shop").value.trim(),price:$("#e-price").value.trim(),qty:Math.max(1,parseInt($("#e-qty").value)||1),
-    img:$("#e-img").value.trim(),link:$("#e-link").value.trim(),note:$("#e-note").value.trim(),memo:$("#e-memo").value.trim(),prio:$("#e-prio").checked,st:$("#e-st").value,by:$("#e-by").value.trim(),vars:editVars.map(v=>({n:v.n,c:v.c,own:v.own?1:0}))};
+    img:$("#e-img").value.trim(),link:$("#e-link").value.trim(),note:$("#e-note").value.trim(),memo:$("#e-memo").value.trim(),prio:editing?!!editing.prio:false,st:$("#e-st").value,by:$("#e-by").value.trim(),vars:editVars.map(v=>({n:v.n,c:v.c,own:v.own?1:0}))};
   if(!v.vars.length)delete v.vars;
   if(v.st!=="got")v.by=editing?.st==="got"?"":v.by;
   if(editing)Object.assign(editing,v);else items.push({id:uid(),at:Date.now(),...v});
@@ -487,14 +498,13 @@ $("#e-save").onclick=()=>{
 };
 $("#e-del").onclick=()=>{if(!editing||!confirm(`刪除「${editing.name}」？`))return;items=items.filter(i=>i!==editing);persist();render();$("#editDlg").close();toast("已刪除")};
 $("#fab").onclick=()=>openEdit();
-function moveItem(d){
-  if(!editing)return;
-  const same=sortItems(items.filter(i=>catOf(i)===catOf(editing))),k=same.indexOf(editing),o=same[k+d];
+// move within the section as it is shown now (same IP・類型 and the current status filter)
+function moveItem(it,d){
+  const same=sortItems(items.filter(i=>catOf(i)===catOf(it)&&matchSt(i))),k=same.indexOf(it),o=same[k+d];
   if(!o){toast(d<0?"已經在最前面":"已經在最後面");return}
-  const a=editing.at||0;editing.at=o.at||0;o.at=a;if(editing.at===o.at)editing.at+=d;
-  persist();render();toast(d<0?"已往前移":"已往後移");
+  const a=it.at||0;it.at=o.at||0;o.at=a;if(it.at===o.at)it.at+=d;
+  persist();render();
 }
-$("#e-up").onclick=()=>moveItem(-1);$("#e-down").onclick=()=>moveItem(1);
 
 /* ---------- friend view ---------- */
 function openView(i){
