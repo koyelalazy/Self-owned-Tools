@@ -659,7 +659,7 @@ function showView(i){
     $("#v-buy").hidden=!on||!RO;if(!on)return;const b=buyOf(i);
     const step=(k,n,min)=>`<div class="step"><button type="button" data-k="${esc(k)}" data-d="-1" aria-label="少一個"${n<=min?" disabled":""}>－</button><b>${n}</b><button type="button" data-k="${esc(k)}" data-d="1" aria-label="多一個">＋</button></div>`;
     $("#v-bvars").innerHTML=opts.length
-      ?`<div class="hint2">每款買了幾個${+i.qty>0?`（想要 ${+i.qty} 個）`:""}</div>`+[...opts,{n:RND,rnd:1}].map(v=>{const n=b.vc[v.n]||0;return `<div class="brow${n?"":" zero"}${v.rnd?" rnd":""}"><span class="vchip"${v.rnd?` title="扭蛋、盲抽還沒拆，不知道是哪款"`:` style="${vStyle(v)}"`}>${esc(v.n)}${v.rnd?"<small>（未拆／不知道款）</small>":""}</span>${step(v.n,n,0)}</div>`}).join("")
+      ?`<div class="hint2">每款買了幾個${+i.qty>0?`（想要 ${+i.qty} 個）`:""}</div>`+[{n:RND,rnd:1},...opts].map(v=>{const n=b.vc[v.n]||0;return `<div class="brow${n?"":" zero"}${v.rnd?" rnd":""}"><span class="vchip"${v.rnd?` title="扭蛋、盲抽還沒拆，不知道是哪款"`:` style="${vStyle(v)}"`}>${esc(v.n)}${v.rnd?"<small>（未拆／不知道款）</small>":""}</span>${step(v.n,n,0)}</div>`}).join("")
       :`<div class="brow"><span>我買了幾個${+i.qty>0?`（想要 ${+i.qty} 個）`:""}</span>${step("",b.q,1)}</div>`};
   $("#v-bvars").onclick=e=>{const t=e.target.closest("button[data-d]");if(!t||t.disabled)return;const k=t.dataset.k,d=+t.dataset.d;
     const b=buyOf(i);if(opts.length){const n=Math.max(0,(b.vc[k]||0)+d);if(n)b.vc[k]=n;else delete b.vc[k];mineInfo[i.id]={vc:b.vc}}else mineInfo[i.id]={q:Math.max(1,b.q+d)};
@@ -671,7 +671,7 @@ function showView(i){
 function saveMine(){ls.set(MINE_KEY,JSON.stringify([...mine]));ls.set(MINE_KEY+"-d",JSON.stringify(mineInfo))}
 const buyOf=i=>{const d=mineInfo[i.id]||{},vc={...(d.vc||{})};if(Array.isArray(d.v))d.v.forEach(n=>{vc[n]=vc[n]||1});return {q:Math.max(1,+d.q||1),vc}};
 const RND="隨機";
-const buyText=i=>{const b=buyOf(i);if(!hasVars(i))return " ×"+b.q;const e=Object.entries(b.vc).filter(x=>x[1]>0).sort((x,y)=>(x[0]===RND)-(y[0]===RND));return e.length?"："+e.map(([n,c])=>n+"×"+c).join("、"):""};
+const buyText=i=>{const b=buyOf(i);if(!hasVars(i))return " ×"+b.q;const e=Object.entries(b.vc).filter(x=>x[1]>0).sort((x,y)=>(y[0]===RND)-(x[0]===RND));return e.length?"："+e.map(([n,c])=>n+"×"+c).join("、"):""};
 function toggleMine(id){mine.has(id)?mine.delete(id):mine.add(id);saveMine();render()}
 $("#trayBtn").onclick=async()=>{
   const got=items.filter(i=>mine.has(i.id));
