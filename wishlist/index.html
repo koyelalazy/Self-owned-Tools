@@ -548,7 +548,9 @@ function render(){
   $("#fltDot").hidden=!tags.length;$("#fltBtn").title="篩選："+(tags.join("・")||"全部")+"（點一下切換）";
   $("#q").placeholder=(tags.length?"【"+tags.join("・")+"】":"")+"搜尋名稱、款式、店家、說明";
   let list=sortItems(base.filter(i=>inReg(i)&&inCat(i)&&matchQ(i)));
-  if(view.sort!=="at"){const d=view.sort==="lvd"?-1:1;list=list.map((i,k)=>[i,k]).sort((x,y)=>d*(lvOf(x[0])-lvOf(y[0]))||x[1]-y[1]).map(x=>x[0])}
+  /* friends see one grid, so it follows the IP order (then 類型, then the owner's own order); a level sort goes first */
+  if(view.sort!=="at"||RO){const d=view.sort==="lvd"?-1:view.sort==="lva"?1:0,ipk=i=>IPS.indexOf(ipOf(i)),tk=i=>TYPES.indexOf(typeOf(i));
+    list=list.map((i,k)=>[i,k]).sort((x,y)=>d*(lvOf(x[0])-lvOf(y[0]))||(RO?ipk(x[0])-ipk(y[0])||tk(x[0])-tk(y[0]):0)||x[1]-y[1]).map(x=>x[0])}
   document.documentElement.classList.toggle("lvsort",view.sort!=="at");
   document.querySelectorAll("#sortFilter button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===view.sort));
   $("#sortDot").hidden=view.sort==="at";$("#sortBtn").title="排序："+$(`#sortFilter button[data-v="${view.sort}"]`)?.textContent||"";
