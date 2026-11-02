@@ -166,7 +166,8 @@ section h2 .tbtn{font-size:12px;font-weight:500;border:1px solid var(--muted);ba
 .badge{position:absolute;top:6px;left:6px;background:var(--heart);color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
 .badge.st{left:auto;right:6px;background:var(--got)}
 .badge.st.drop{background:var(--muted)}
-.badge.qty{left:auto;right:6px;top:auto;bottom:6px;background:var(--ink);color:var(--paper)}
+.badge.qty{left:auto;right:8px;top:auto;bottom:8px;background:rgba(20,14,10,.82);color:#fff;font-size:20px;line-height:1.2;padding:3px 12px;border-radius:12px}
+html.dense .badge.qty{font-size:16px;padding:2px 9px;right:6px;bottom:6px}
 .empty{color:var(--muted);text-align:center;padding:40px 0}
 .empty button{margin-top:10px}
 #fab{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));height:52px;border-radius:999px;border:0;background:var(--accent);color:#fff;font-size:16px;font-weight:700;padding:0 20px;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:20}
@@ -486,7 +487,7 @@ function cardHTML(i){
       ${RO?"":`<div class="mvbtns"><button type="button" class="b-up" title="往前移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button><button type="button" class="b-down" title="往後移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button></div>`}</div>
     <div class="pic">${img?`<img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'🎁'}))">`:`<span class="ph">🎁</span>`}
       ${!RO&&i.st!=="want"?`<span class="badge st ${i.st}">${i.st==="got"?"✓ 已入手":"不要了"}</span>`:""}
-      ${+i.qty>1?`<span class="badge qty">×${+i.qty}</span>`:""}</div>
+      <span class="badge qty" title="要買的數量">×${+i.qty||1}</span></div>
     <div class="body">${varsHTML(i)}${sub?`<div class="meta">${sub}</div>`:""}${i.note?`<div class="nt">${esc(i.note)}</div>`:""}${RO?`<div class="acts"><button type="button" class="b-mine" aria-pressed="${isMine}">${isMine?"✓ 我買了":"我買了"}</button></div>`:""}</div></div>`;
 }
 
@@ -587,7 +588,7 @@ function openEdit(it){
   editing=it||null;const i=it||{st:"want",ip:view.ip!=="all"?view.ip:"",type:view.type!=="all"?view.type:"",reg:view.reg!=="all"&&view.reg!=="未填地區"?view.reg:(ls.get("wishlist-lastreg")||"")};
   $("#e-h").textContent=it?"編輯":"新增想要的東西";
   $("#e-name").value=i.name||"";$("#e-pick").value=i.pick||"";$("#e-ip").value=IPS.includes(i.ip)?i.ip:(it?"其他":"");$("#e-type").value=TYPES.includes(i.type)?i.type:(it?"其他":"");$("#e-reg").value=i.reg||"";$("#e-shop").value=i.shop||"";$("#e-price").value=i.price||"";
-  $("#e-qty").value=+i.qty>1?i.qty:"";$("#e-img").value=i.img||"";$("#e-link").value=i.link||"";$("#e-note").value=i.note||"";$("#e-memo").value=i.memo||"";
+  $("#e-qty").value=+i.qty||1;$("#e-img").value=i.img||"";$("#e-link").value=i.link||"";$("#e-note").value=i.note||"";$("#e-memo").value=i.memo||"";
   editVars=(i.vars||[]).map(v=>({...v}));drawVars();$("#e-vadd").value="";$("#e-st").value=i.st||"want";$("#e-lv").value=i.prio?"2":i.opt?"0":"1";$("#e-by").value=i.by||"";$("#e-by-l").hidden=$("#e-st").value!=="got";
   $("#e-del").hidden=!it;showPic($("#e-pic"),i.img);$("#editDlg").showModal();if(!it)$("#e-name").focus();
 }
@@ -633,7 +634,7 @@ function showView(i){
   showPic($("#v-pic"),i.img);$("#v-name").innerHTML=esc(i.name)+(i.pick?` <span style="color:#d4252b">(${esc(i.pick)})</span>`:"");
   const link=safeUrl(i.link);
   const need=needVars(i).map(v=>v.n).join("、");
-  const rows=[["還缺",need],["IP",ipOf(i)],["類型",typeOf(i)],["地區",i.reg],["哪裡買",i.shop],["參考價格",i.price],["數量",+i.qty>1?i.qty+" 個":""],["說明",i.note]].filter(r=>r[1]);
+  const rows=[["還缺",need],["IP",ipOf(i)],["類型",typeOf(i)],["地區",i.reg],["哪裡買",i.shop],["參考價格",i.price],["數量",(+i.qty||1)+" 個"],["說明",i.note]].filter(r=>r[1]);
   $("#v-kv").innerHTML=(i.prio?`<dt>♥</dt><dd style="color:var(--heart);font-weight:700">必買</dd>`:i.opt?`<dt>非必要</dt><dd style="color:var(--muted);font-weight:700">為了收齊，不一定要，有看到再買就好</dd>`:"")+rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")+(link?`<dt>連結</dt><dd><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">打開商品頁 ↗</a></dd>`:"");
   const upd=()=>{const on=mine.has(i.id);$("#v-mine").setAttribute("aria-pressed",on);$("#v-mine").title=on?"我買了（再按一下取消）":"我買了";$("#viewDlg").classList.toggle("mine",on)};
   $("#v-mine").onclick=()=>{toggleMine(i.id);upd()};upd();
@@ -641,7 +642,7 @@ function showView(i){
 function toggleMine(id){mine.has(id)?mine.delete(id):mine.add(id);ls.set(MINE_KEY,JSON.stringify([...mine]));render()}
 $("#trayBtn").onclick=async()=>{
   const got=items.filter(i=>mine.has(i.id));
-  const text=`我幫你買了 ${got.length} 項：\n`+got.map(i=>"・"+i.name+(i.pick?"（"+i.pick+"）":"")+(needVars(i).length?"（缺："+needVars(i).map(v=>v.n).join("、")+"）":"")+(+i.qty>1?" ×"+i.qty:"")).join("\n");
+  const text=`我幫你買了 ${got.length} 項：\n`+got.map(i=>"・"+i.name+(i.pick?"（"+i.pick+"）":"")+(needVars(i).length?"（缺："+needVars(i).map(v=>v.n).join("、")+"）":"")+(" ×"+(+i.qty||1))).join("\n");
   if(navigator.share){try{await navigator.share({text});return}catch(e){if(e.name==="AbortError")return}}
   try{await navigator.clipboard.writeText(text);toast("已複製，貼到聊天室給對方")}catch(e){prompt("複製這段文字傳給對方",text)}
 };
