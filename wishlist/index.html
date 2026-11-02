@@ -475,10 +475,14 @@ const IP0=["寶可夢","吉伊卡哇","自嘲熊","TWICE","DISNEY","其他"],TYP
 let IPS=IP0.slice(),TYPES=TYPE0.slice();
 /* lists = built-in names, then the user's own additions, then any name already used by an item (e.g. in a friend's shared copy); 其他 stays last */
 function refreshLists(){const mk=(base,extra,vals)=>{const o=base.filter(x=>x!=="其他");[...extra,...vals].forEach(v=>{v=String(v||"").trim();if(v&&v!=="其他"&&!o.includes(v))o.push(v)});o.push("其他");return o};
+  const low=a=>a.map(x=>x.toLowerCase());custom.ips=custom.ips.filter(x=>!low(IP0).includes(String(x).toLowerCase()));custom.types=custom.types.filter(x=>!low(TYPE0).includes(String(x).toLowerCase()));
   IPS=mk(IP0,custom.ips,items.map(i=>i.ip));TYPES=mk(TYPE0,custom.types,items.map(i=>i.type))}
 function norm(i){
   if(i.cat!==undefined&&i.ip===undefined&&i.type===undefined){const c=i.cat||"";i.ip=IPS.find(x=>c.includes(x))||(/ポケモン|pokemon|皮卡丘/i.test(c)?"寶可夢":/ちいかわ|吉伊/.test(c)?"吉伊卡哇":"其他");i.type=TYPES.find(x=>c.includes(x))||"其他"}
-  delete i.cat;return i;
+  delete i.cat;
+  /* "Disney" and "DISNEY" are the same IP: snap to the built-in spelling */
+  const snap=(v,arr)=>{if(!v)return v;const f=arr.find(x=>x.toLowerCase()===String(v).trim().toLowerCase());return f||v};
+  i.ip=snap(i.ip,IP0);i.type=snap(i.type,TYPE0);return i;
 }
 const ipOf=i=>IPS.includes(i.ip)?i.ip:"其他",typeOf=i=>TYPES.includes(i.type)?i.type:"其他";
 const catOf=i=>ipOf(i)+"・"+typeOf(i);
@@ -548,9 +552,9 @@ function render(){
   $("#fltDot").hidden=!tags.length;$("#fltBtn").title="篩選："+(tags.join("・")||"全部")+"（點一下切換）";
   $("#q").placeholder=(tags.length?"【"+tags.join("・")+"】":"")+"搜尋名稱、款式、店家、說明";
   let list=sortItems(base.filter(i=>inReg(i)&&inCat(i)&&matchQ(i)));
-  /* friends see one grid, so it follows the IP order (then 類型, then the owner's own order); a level sort goes first */
+  /* friends see one grid: IP order first, then the chosen level sort, then 類型, then the owner's own order */
   if(view.sort!=="at"||RO){const d=view.sort==="lvd"?-1:view.sort==="lva"?1:0,ipk=i=>IPS.indexOf(ipOf(i)),tk=i=>TYPES.indexOf(typeOf(i));
-    list=list.map((i,k)=>[i,k]).sort((x,y)=>d*(lvOf(x[0])-lvOf(y[0]))||(RO?ipk(x[0])-ipk(y[0])||tk(x[0])-tk(y[0]):0)||x[1]-y[1]).map(x=>x[0])}
+    list=list.map((i,k)=>[i,k]).sort((x,y)=>(RO?ipk(x[0])-ipk(y[0]):0)||d*(lvOf(x[0])-lvOf(y[0]))||(RO?tk(x[0])-tk(y[0]):0)||x[1]-y[1]).map(x=>x[0])}
   document.documentElement.classList.toggle("lvsort",view.sort!=="at");
   document.querySelectorAll("#sortFilter button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===view.sort));
   $("#sortDot").hidden=view.sort==="at";$("#sortBtn").title="排序："+$(`#sortFilter button[data-v="${view.sort}"]`)?.textContent||"";
