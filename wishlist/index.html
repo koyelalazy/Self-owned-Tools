@@ -72,7 +72,6 @@ section{margin-top:18px}
 section h2{font-size:18px;margin:0 0 8px;padding:6px 12px;border-radius:10px;background:var(--line);display:flex;align-items:baseline;gap:8px}
 section h2 .cnt{margin-left:auto;font-size:13px;font-weight:500;color:var(--muted)}
 .grid{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:12px;align-items:start}
-@media (max-width:560px){.grid{--cols:1}}
 html[data-cols="1"] .grid{--cols:1}html[data-cols="2"] .grid{--cols:2}html[data-cols="3"] .grid{--cols:3}html[data-cols="4"] .grid{--cols:4}
 /* narrow cards (several per row on a phone): smaller text so names and chips still fit */
 html.dense .grid{gap:8px}
@@ -430,10 +429,10 @@ function chipRow(el,key,all,keys,cntFn){
   el.innerHTML=keys.length>1?["all",...keys].map(k=>`<button class="chip" data-k="${key}" data-v="${esc(k)}" aria-pressed="${view[key]===k}">${k==="all"?all:esc(k)}<small>${cntFn(k)}</small></button>`).join(""):"";
 }
 let tables=new Set();try{tables=new Set(JSON.parse(ls.get("wishlist-tables")||"[]"))}catch(e){}
-/* cards per row: chosen per viewer and kept in this browser; default is 1 on phones, 2 on wider screens */
+/* cards per row: chosen per viewer and kept in this browser; default is 2 everywhere */
 const COLS_KEY="wishlist-cols";
 function applyCols(){
-  const c=+ls.get(COLS_KEY)||0,eff=c||(innerWidth<=560?1:2);
+  const c=+ls.get(COLS_KEY)||0,eff=c||2;
   if(c)document.documentElement.dataset.cols=c;else delete document.documentElement.dataset.cols;
   document.documentElement.classList.toggle("dense",Math.min(innerWidth,1000)/eff<300);
   document.querySelectorAll("#colSeg button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.v===eff));
