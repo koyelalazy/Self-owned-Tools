@@ -167,7 +167,7 @@ dialog .two>label{min-width:0}
 #viewDlg{position:fixed;overflow:visible}
 #viewDlg form{max-height:calc(100dvh - 24px);overflow:auto;border-radius:18px;border:3px solid transparent}
 #viewDlg.mine form{border-color:var(--got)}
-.xbtn{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;display:grid;place-items:center;padding:0;z-index:2;cursor:pointer}
+.xbtn{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:50%;border:0;background:#e0383d;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);color:#fff;display:grid;place-items:center;padding:0;z-index:2;cursor:pointer}
 .xbtn svg{width:18px;height:18px}
 .vhead:has(.dpic[hidden]) #v-next{right:44px}
 #v-mine{width:100%;height:52px;border-radius:14px;border:2px solid var(--line);background:none;color:var(--muted);display:grid;place-items:center;margin-top:4px}
@@ -347,6 +347,9 @@ const safeUrl=u=>/^https?:\/\//i.test(u||"")?u:"";
 const SITE_URL="https://koyelalazy.github.io/Self-owned-Tools/wishlist/";
 const DEFAULT_REGS=["日本","韓國","泰國","香港","新加坡","美國","歐洲"];
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>b.closest("dialog").close());
+// item and share popups also close on a tap outside the box (not the edit dialog, so typing isn't lost)
+["#viewDlg","#shareDlg"].forEach(id=>{const d=$(id);d.addEventListener("click",e=>{if(e.target!==d)return;const r=d.getBoundingClientRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()})});
 
 /* ---------- data ---------- */
 // item: {id,name,pick,ip,type,reg,shop,price,qty,img,link,note,memo,prio,st:"want"|"got"|"drop",by,at}
