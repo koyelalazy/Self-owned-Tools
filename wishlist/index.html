@@ -193,6 +193,16 @@ dialog .two>label{min-width:0}
 .xbtn{position:absolute;top:8px;right:8px;width:38px;height:38px;border-radius:10px;border:0;background:#a8232a;box-shadow:0 2px 8px rgba(0,0,0,.4);color:#fff;display:grid;place-items:center;padding:0;z-index:2;cursor:pointer}
 .xbtn svg{width:18px;height:18px}
 .vhead:has(.dpic[hidden]) #v-next{top:60%}
+#v-buy{border:2px solid var(--got);border-radius:14px;padding:10px 12px;margin-top:8px;display:flex;flex-direction:column;gap:8px;background:var(--got-soft)}
+#v-buy .brow{display:flex;align-items:center;justify-content:space-between;font-weight:700;color:var(--got)}
+.step{display:flex;align-items:center;gap:6px}
+.step button{width:40px;height:40px;border-radius:10px;border:2px solid var(--got);background:var(--paper);color:var(--got);font-size:20px;font-weight:700;padding:0}
+.step b{min-width:2ch;text-align:center;font-size:22px;color:var(--ink)}
+#v-bvars .hint2{font-size:13px;font-weight:700;color:var(--got);margin-bottom:4px}
+#v-bvars .vars{gap:6px}
+#v-bvars .vchip{font-size:14px;line-height:28px;padding:0 12px;cursor:pointer;background:var(--paper);color:var(--ink);opacity:.75}
+#v-bvars .vchip[aria-pressed="true"]{background:var(--c);color:var(--fg);opacity:1}
+#v-bvars .vchip[aria-pressed="true"]::before{content:"✓ "}
 #v-mine{width:100%;height:52px;border-radius:14px;border:2px solid var(--line);background:none;color:var(--muted);display:grid;place-items:center;margin-top:4px}
 #v-mine svg{width:30px;height:30px}
 #v-mine[aria-pressed="true"]{background:var(--got);border-color:var(--got);color:#fff}
@@ -333,6 +343,10 @@ html:not(.ro) .ro-only{display:none!important}
       <button type="button" class="dnav" id="v-next" title="下一個" aria-label="下一個"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button></div>
     <p class="dname" id="v-name"></p>
     <dl class="kv" id="v-kv"></dl>
+    <div id="v-buy" hidden>
+      <div class="brow"><span>我買了幾個</span><div class="step"><button type="button" id="v-qm" aria-label="少一個">－</button><b id="v-q">1</b><button type="button" id="v-qp" aria-label="多一個">＋</button></div></div>
+      <div id="v-bvars"></div>
+    </div>
     <button type="button" id="v-mine" title="我買了" aria-label="我買了" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/><path d="M9.2 14l2 2 3.6-3.8"/></svg></button>
   </form>
   <button type="button" class="xbtn" data-close title="關閉" aria-label="關閉"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
@@ -415,7 +429,7 @@ async function unpackShare(s){const kind=s[0],u8=unb64u(s.slice(1));
 const toShare=i=>[i.name||"",i.reg||"",i.shop||"",i.price||"",+i.qty>0?+i.qty:0,i.img||"",i.link||"",i.note||"",i.prio?1:0,ipOf(i),i.pick||"",hasVars(i)?i.vars.map(v=>[v.n,v.c||"",v.own?1:0]):0,typeOf(i),i.opt?1:0];
 const fromShare=(a,k)=>({id:"s"+k,name:a[0],reg:a[1],shop:a[2],price:a[3],qty:+a[4]||0,img:a[5],link:a[6],note:a[7],prio:!!a[8],...(a.length>12?{ip:a[9],type:a[12]}:{cat:a[9]||""}),pick:a[10]||"",vars:Array.isArray(a[11])?a[11].map(v=>({n:v[0],c:v[1],own:v[2]})):undefined,opt:a[13]?1:0,st:"want",at:k});
 
-let shared=null,RO=false,mine=new Set(),MINE_KEY="";
+let shared=null,RO=false,mine=new Set(),MINE_KEY="",mineInfo={};
 const m=/#w=([A-Za-z0-9_-]+)/.exec(location.hash);
 const qs=new URLSearchParams(location.search),GID=/^[0-9a-f]{20,40}$/i.test(qs.get("g")||"")?qs.get("g"):"";
 if(m||GID)RO=true;
@@ -488,7 +502,7 @@ function cardHTML(i){
     <div class="pic">${img?`<img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'🎁'}))">`:`<span class="ph">🎁</span>`}
       ${!RO&&i.st!=="want"?`<span class="badge st ${i.st}">${i.st==="got"?"✓ 已入手":"不要了"}</span>`:""}
       ${+i.qty>0?`<span class="badge qty" title="要買的數量">×${+i.qty}</span>`:""}</div>
-    <div class="body">${varsHTML(i)}${sub?`<div class="meta">${sub}</div>`:""}${i.note?`<div class="nt">${esc(i.note)}</div>`:""}${RO?`<div class="acts"><button type="button" class="b-mine" aria-pressed="${isMine}">${isMine?"✓ 我買了":"我買了"}</button></div>`:""}</div></div>`;
+    <div class="body">${varsHTML(i)}${sub?`<div class="meta">${sub}</div>`:""}${i.note?`<div class="nt">${esc(i.note)}</div>`:""}${RO?`<div class="acts"><button type="button" class="b-mine" aria-pressed="${isMine}">${isMine?"✓ 我買了"+esc(buyText(i)):"我買了"}</button></div>`:""}</div></div>`;
 }
 
 function chipRow(el,key,all,keys,cntFn){
@@ -636,13 +650,24 @@ function showView(i){
   const need=needVars(i).map(v=>v.n).join("、");
   const rows=[["還缺",need],["IP",ipOf(i)],["類型",typeOf(i)],["地區",i.reg],["哪裡買",i.shop],["參考價格",i.price],["數量",+i.qty>0?i.qty+" 個":""],["說明",i.note]].filter(r=>r[1]);
   $("#v-kv").innerHTML=(i.prio?`<dt>♥</dt><dd style="color:var(--heart);font-weight:700">必買</dd>`:i.opt?`<dt>非必要</dt><dd style="color:var(--muted);font-weight:700">為了收齊，不一定要，有看到再買就好</dd>`:"")+rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")+(link?`<dt>連結</dt><dd><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">打開商品頁 ↗</a></dd>`:"");
-  const upd=()=>{const on=mine.has(i.id);$("#v-mine").setAttribute("aria-pressed",on);$("#v-mine").title=on?"我買了（再按一下取消）":"我買了";$("#viewDlg").classList.toggle("mine",on)};
+  const opts=hasVars(i)?(needVars(i).length?needVars(i):i.vars):[];
+  const upd=()=>{const on=mine.has(i.id);$("#v-mine").setAttribute("aria-pressed",on);$("#v-mine").title=on?"我買了（再按一下取消）":"我買了";$("#viewDlg").classList.toggle("mine",on);
+    $("#v-buy").hidden=!on||!RO;if(!on)return;const b=buyOf(i);$("#v-q").textContent=b.q;
+    $("#v-bvars").innerHTML=opts.length?`<div class="hint2">買了哪些款（點一下選）</div><div class="vars">${opts.map(v=>`<button type="button" class="vchip" style="${vStyle(v)}" data-n="${esc(v.n)}" aria-pressed="${b.v.includes(v.n)}">${esc(v.n)}</button>`).join("")}</div>`:""};
+  const setBuy=f=>{const b=buyOf(i);f(b);mineInfo[i.id]=b;saveMine();render();upd()};
+  $("#v-qm").onclick=()=>setBuy(b=>{b.q=Math.max(1,b.q-1)});
+  $("#v-qp").onclick=()=>setBuy(b=>{b.q=b.q+1});
+  $("#v-bvars").onclick=e=>{const c=e.target.closest(".vchip");if(!c)return;const n=c.dataset.n;setBuy(b=>{b.v=b.v.includes(n)?b.v.filter(x=>x!==n):[...b.v,n];if(b.q<b.v.length)b.q=b.v.length})};
   $("#v-mine").onclick=()=>{toggleMine(i.id);upd()};upd();
 }
-function toggleMine(id){mine.has(id)?mine.delete(id):mine.add(id);ls.set(MINE_KEY,JSON.stringify([...mine]));render()}
+/* friend's own record of what they bought: mineInfo[id]={q:count,v:[款式 names]}, kept in their browser only */
+function saveMine(){ls.set(MINE_KEY,JSON.stringify([...mine]));ls.set(MINE_KEY+"-d",JSON.stringify(mineInfo))}
+const buyOf=i=>{const d=mineInfo[i.id]||{};return {q:+d.q||Math.max(1,+i.qty||0),v:Array.isArray(d.v)?d.v:[]}};
+const buyText=i=>{const b=buyOf(i);return " ×"+b.q+(b.v.length?"（"+b.v.join("、")+"）":"")};
+function toggleMine(id){mine.has(id)?mine.delete(id):mine.add(id);saveMine();render()}
 $("#trayBtn").onclick=async()=>{
   const got=items.filter(i=>mine.has(i.id));
-  const text=`我幫你買了 ${got.length} 項：\n`+got.map(i=>"・"+i.name+(i.pick?"（"+i.pick+"）":"")+(needVars(i).length?"（缺："+needVars(i).map(v=>v.n).join("、")+"）":"")+(+i.qty>0?" ×"+i.qty:"")).join("\n");
+  const text=`我幫你買了 ${got.length} 項：\n`+got.map(i=>"・"+i.name+(i.pick?"（"+i.pick+"）":"")+buyText(i)).join("\n");
   if(navigator.share){try{await navigator.share({text});return}catch(e){if(e.name==="AbortError")return}}
   try{await navigator.clipboard.writeText(text);toast("已複製，貼到聊天室給對方")}catch(e){prompt("複製這段文字傳給對方",text)}
 };
@@ -863,7 +888,7 @@ $("#s-off").onclick=()=>{
     if(shared.v===2){items=shared.i.map(o=>({...o,qty:+o.qty||0,st:"want"}));
       const rs=(qs.get("r")||"").split(",").filter(Boolean);if(rs.length)items=items.filter(i=>rs.includes(regOf(i)))}
     else items=shared.i.map(fromShare);
-    MINE_KEY=GID?"wishlist-mine-g-"+GID:"wishlist-mine-"+shared.t;try{mine=new Set(JSON.parse(ls.get(MINE_KEY)||"[]"))}catch(e){}
+    MINE_KEY=GID?"wishlist-mine-g-"+GID:"wishlist-mine-"+shared.t;try{mine=new Set(JSON.parse(ls.get(MINE_KEY)||"[]"))}catch(e){}try{mineInfo=JSON.parse(ls.get(MINE_KEY+"-d")||"{}")||{}}catch(e){}
     const who=shared.n||"朋友",d=new Date(shared.t||Date.now());
     const when=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
     document.title=`${who}的代購願望清單`;
