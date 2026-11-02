@@ -90,7 +90,7 @@ h1 small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
 section{margin-top:18px}
 section h2{font-size:18px;margin:0 0 8px;padding:6px 12px;border-radius:10px;background:var(--line);display:flex;align-items:baseline;gap:8px}
 section h2 .cnt{margin-left:auto;font-size:13px;font-weight:500;color:var(--muted)}
-.grid{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:12px;align-items:start}
+.grid{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:12px;align-items:stretch}
 html[data-cols="1"] .grid{--cols:1}html[data-cols="2"] .grid{--cols:2}html[data-cols="3"] .grid{--cols:3}html[data-cols="4"] .grid{--cols:4}
 /* narrow cards (several per row on a phone): smaller text so names and chips still fit */
 html.dense .grid{gap:8px}
@@ -134,7 +134,7 @@ html.lvsort .mvbtns{display:none}
 .card .pic{background:var(--img-bg);display:grid;place-items:center;overflow:hidden;position:relative;min-height:120px}
 .card .pic img{width:100%;height:auto;max-height:560px;object-fit:contain;display:block}
 .card .pic .ph{font-size:44px;opacity:.5}
-.card .body{padding:6px 12px 10px;display:flex;flex-direction:column;gap:3px}
+.card .body{flex:1;padding:6px 12px 10px;display:flex;flex-direction:column;gap:3px}
 .card .body:empty{display:none}
 .card .nt{font-size:13px;white-space:pre-wrap}
 /* 款式 chips: colored = still needed, faded + struck = already have */
