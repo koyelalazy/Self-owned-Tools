@@ -466,7 +466,7 @@ function regOrder(list){
 
 /* ---------- render ---------- */
 function persist(){ls.set(DATA_KEY,JSON.stringify({items,savedAt:new Date().toISOString()}));ls.set(DIRTY_KEY,"1");setSyncUI()}
-function saveView(){if(!RO)ls.set(VIEW_KEY,JSON.stringify({st:view.st,lv:view.lv,sort:view.sort,reg:view.reg,ip:view.ip,type:view.type}))}
+function saveView(){ls.set(RO?VIEW_KEY+"-ro":VIEW_KEY,JSON.stringify({st:view.st,lv:view.lv,sort:view.sort,reg:view.reg,ip:view.ip,type:view.type}))}
 const matchQ=i=>{const q=view.q.trim().toLowerCase();if(!q)return true;return [i.name,i.pick,(i.vars||[]).map(v=>v.n).join(" "),i.ip,i.type,i.reg,i.shop,i.note,i.memo,i.price].some(v=>String(v||"").toLowerCase().includes(q))};
 const matchSt=i=>RO?(view.st==="all"||(view.st==="mine")===mine.has(i.id)):(view.st==="all"||i.st===view.st);
 const sortItems=a=>a.slice().sort((x,y)=>(x.at||0)-(y.at||0));
@@ -553,7 +553,7 @@ function render(){
 }
 document.querySelector(".bar").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;view[b.dataset.k]=b.dataset.v;saveView();render()});
 $("#stFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;saveView();render();closeFlt()};
-$("#roFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;render();closeFlt()};
+$("#roFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;saveView();render();closeFlt()};
 $("#sortFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.sort=b.dataset.v;saveView();render();closeFlt()};
 $("#lvFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.lv=b.dataset.v;saveView();render();closeFlt()};
 function closeFlt(){for(const k of ["flt","sort"]){$("#"+k+"Pop").hidden=true;$("#"+k+"Btn").setAttribute("aria-expanded","false")}}
@@ -871,6 +871,7 @@ $("#s-off").onclick=()=>{
     $("#roBanner").innerHTML=`<details${ls.get("wishlist-help")==="open"?" open":""}><summary>謝謝你願意幫忙帶東西 🙏</summary><span class="msg">點商品看詳細和連結。買了就按「我買了」（只記在你的手機上），最後按下面的「告訴對方」把清單傳回去。標 ♥ 的是必買，標「非必要」的有看到再買就好。</span></details>${shared.m?`<span class="own">${esc(shared.m)}</span>`:""}`;
     $("#roBanner details").addEventListener("toggle",e=>ls.set("wishlist-help",e.target.open?"open":"closed"));
     view={st:"all",lv:"all",sort:"at",reg:"all",ip:"all",type:"all",q:""};
+    try{Object.assign(view,JSON.parse(ls.get(VIEW_KEY+"-ro")||"{}"),{q:""})}catch(e){}
   }else if(/^#sync=/.test(location.hash)){importSetup(location.hash);history.replaceState(null,"",location.pathname+location.search)}
   render();if(!RO)setSyncUI();
 })();
