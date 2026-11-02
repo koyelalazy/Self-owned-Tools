@@ -71,8 +71,24 @@ h1 small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
 section{margin-top:18px}
 section h2{font-size:18px;margin:0 0 8px;padding:6px 12px;border-radius:10px;background:var(--line);display:flex;align-items:baseline;gap:8px}
 section h2 .cnt{margin-left:auto;font-size:13px;font-weight:500;color:var(--muted)}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
-@media (max-width:560px){.grid{grid-template-columns:1fr}}
+.grid{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:12px;align-items:start}
+@media (max-width:560px){.grid{--cols:1}}
+html[data-cols="1"] .grid{--cols:1}html[data-cols="2"] .grid{--cols:2}html[data-cols="3"] .grid{--cols:3}html[data-cols="4"] .grid{--cols:4}
+/* narrow cards (several per row on a phone): smaller text so names and chips still fit */
+html.dense .grid{gap:8px}
+html.dense .card .head{padding:4px 8px 6px;gap:0 4px;flex-wrap:wrap}
+html.dense .card .head .ti{order:3;flex-basis:100%}
+html.dense .card .mvbtns{margin-left:auto}
+html.dense .card .nm{font-size:13px}
+html.dense .card .lnk{font-size:11px}
+html.dense .card .body{padding:5px 8px 8px}
+html.dense .vchip{font-size:11px;padding:0 6px;line-height:18px}
+html.dense .hbtn{width:26px;height:26px}
+html.dense .hbtn svg{width:18px;height:18px}
+html.dense .mvbtns button{width:24px;height:24px}
+html.dense .mvbtns svg{width:15px;height:15px}
+.colseg{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
+.colseg .seg button{padding:7px 10px}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow);position:relative;text-align:left;padding:0}
 .card.prio{border:2px solid var(--heart)}
 .card.got,.card.drop{opacity:.6}
@@ -200,6 +216,7 @@ html:not(.ro) .ro-only{display:none!important}
       <div class="seg ro-only" id="roFilter">
         <button data-v="all">全部</button><button data-v="todo">還沒買</button><button data-v="mine">我買了</button>
       </div>
+      <div class="colseg">每排<div class="seg" id="colSeg"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button></div></div>
     </div>
     <div class="chips" id="regChips"></div>
   </div>
@@ -413,6 +430,16 @@ function chipRow(el,key,all,keys,cntFn){
   el.innerHTML=keys.length>1?["all",...keys].map(k=>`<button class="chip" data-k="${key}" data-v="${esc(k)}" aria-pressed="${view[key]===k}">${k==="all"?all:esc(k)}<small>${cntFn(k)}</small></button>`).join(""):"";
 }
 let tables=new Set();try{tables=new Set(JSON.parse(ls.get("wishlist-tables")||"[]"))}catch(e){}
+/* cards per row: chosen per viewer and kept in this browser; default is 1 on phones, 2 on wider screens */
+const COLS_KEY="wishlist-cols";
+function applyCols(){
+  const c=+ls.get(COLS_KEY)||0,eff=c||(innerWidth<=560?1:2);
+  if(c)document.documentElement.dataset.cols=c;else delete document.documentElement.dataset.cols;
+  document.documentElement.classList.toggle("dense",Math.min(innerWidth,1000)/eff<300);
+  document.querySelectorAll("#colSeg button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.v===eff));
+}
+$("#colSeg").onclick=e=>{const b=e.target.closest("button");if(!b)return;ls.set(COLS_KEY,b.dataset.v);applyCols()};
+addEventListener("resize",applyCols);applyCols();
 function render(){
   items.forEach(norm);
   const base=items.filter(matchSt);
