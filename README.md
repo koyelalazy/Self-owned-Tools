@@ -8,3 +8,4 @@ Small personal tools. This repository holds code only; personal data lives in a 
 | 吉伊卡哇地區限定 (chiikawa) | https://koyelalazy.github.io/Self-owned-Tools/chiikawa/ |
 | 旅行行程 (trip) | https://koyelalazy.github.io/Self-owned-Tools/trip/ |
 | 快閃活動和交換紀錄 (blindbox) | https://koyelalazy.github.io/Self-owned-Tools/blindbox/ |
+| 代購願望清單 (wishlist) | https://koyelalazy.github.io/Self-owned-Tools/wishlist/ |
