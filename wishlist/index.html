@@ -87,6 +87,27 @@ section h2 .cnt{margin-left:auto;font-size:13px;font-weight:500;color:var(--mute
 .card .body{padding:6px 12px 10px;display:flex;flex-direction:column;gap:3px}
 .card .body:empty{display:none}
 .card .nt{font-size:13px;white-space:pre-wrap}
+/* 款式 chips: colored = still needed, faded + struck = already have */
+.vars{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0}
+.vchip{border:2px solid var(--c);background:var(--c);color:var(--fg);border-radius:99px;padding:0 8px;font-size:12px;font-weight:700;line-height:20px;white-space:nowrap}
+.vchip.own{background:none;color:var(--muted);border-color:var(--line);text-decoration:line-through;font-weight:500}
+.vlbl{font-size:12px;color:var(--muted)}
+.card.done .head{background:var(--got-soft)}
+#e-vars{display:flex;flex-wrap:wrap;gap:6px}
+#e-vars .vchip{font-size:13px;line-height:26px;padding:0 4px 0 10px;cursor:pointer;display:inline-flex;align-items:center;gap:2px}
+#e-vars .vchip .x{border:0;background:none;color:inherit;font-size:15px;padding:0 4px;cursor:pointer;text-decoration:none}
+.vadd{display:flex;gap:6px;flex-wrap:wrap}
+.vadd input{flex:1;min-width:120px}
+section h2 .tbtn{font-size:12px;font-weight:500;border:1px solid var(--muted);background:var(--paper);border-radius:99px;padding:1px 10px;margin-left:8px}
+.mtx{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:12px}
+.mtx table{border-collapse:collapse;font-size:13px;min-width:100%}
+.mtx th,.mtx td{border:1px solid var(--line);padding:4px 6px;text-align:center;white-space:nowrap}
+.mtx th.c{background:var(--c);color:var(--fg)}
+.mtx td.nm{text-align:left;font-weight:700;cursor:pointer;position:sticky;left:0;background:var(--paper)}
+.mtx td.nm a{color:#2a63c9}
+.mtx td.own{background:var(--got-soft);color:var(--got);font-weight:900}
+.mtx td.no{background:var(--line)}
+.ro .mtx td.need{background:var(--heart-soft);color:var(--heart);font-weight:700}
 .card .meta{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card .price{font-size:13px;font-weight:500}
 .card .acts{display:flex;gap:6px;margin-top:auto;padding-top:6px}
@@ -196,6 +217,9 @@ html:not(.ro) .ro-only{display:none!important}
     <label>商品連結<input id="e-link" placeholder="https://…（官網、購物網站、地圖）" autocomplete="off"></label>
     <label>給朋友的說明<textarea id="e-note" rows="2" placeholder="口味、顏色、尺寸，或「看到再買就好」"></textarea></label>
     <label>私人備註（不會分享出去）<textarea id="e-memo" rows="2" placeholder="只有你自己看得到"></textarea></label>
+    <div><p class="hint" style="margin-bottom:6px">款式收集（可空白）：點一下切換「還缺／已有」，朋友會看到還缺哪幾款</p>
+      <div id="e-vars"></div>
+      <div class="vadd" style="margin-top:6px"><input id="e-vadd" placeholder="加一款，例如：皮卡丘" autocomplete="off"><button type="button" class="btn" id="e-vaddb">加</button><button type="button" class="btn" id="e-twice">套用 TWICE 9人</button></div></div>
     <label class="inline"><input type="checkbox" id="e-prio"> ♥ 特別想要</label>
     <div class="two">
       <label>狀態<select id="e-st"><option value="want">想要</option><option value="got">已入手</option><option value="drop">不要了</option></select></label>
@@ -293,12 +317,32 @@ async function unpackShare(s){const kind=s[0],u8=unb64u(s.slice(1));
   const raw=kind==="z"?await pipe(u8,new DecompressionStream("deflate-raw")):u8;
   return JSON.parse(new TextDecoder().decode(raw))}
 // shared item = [name,reg,shop,price,qty,img,link,note,prio,cat,pick]
-const toShare=i=>[i.name||"",i.reg||"",i.shop||"",i.price||"",+i.qty>1?+i.qty:0,i.img||"",i.link||"",i.note||"",i.prio?1:0,i.cat||"",i.pick||""];
-const fromShare=(a,k)=>({id:"s"+k,name:a[0],reg:a[1],shop:a[2],price:a[3],qty:a[4]||1,img:a[5],link:a[6],note:a[7],prio:!!a[8],cat:a[9]||"",pick:a[10]||"",st:"want",at:k});
+const toShare=i=>[i.name||"",i.reg||"",i.shop||"",i.price||"",+i.qty>1?+i.qty:0,i.img||"",i.link||"",i.note||"",i.prio?1:0,i.cat||"",i.pick||"",hasVars(i)?i.vars.map(v=>[v.n,v.c||"",v.own?1:0]):0];
+const fromShare=(a,k)=>({id:"s"+k,name:a[0],reg:a[1],shop:a[2],price:a[3],qty:a[4]||1,img:a[5],link:a[6],note:a[7],prio:!!a[8],cat:a[9]||"",pick:a[10]||"",vars:Array.isArray(a[11])?a[11].map(v=>({n:v[0],c:v[1],own:v[2]})):undefined,st:"want",at:k});
 
 let shared=null,RO=false,mine=new Set(),MINE_KEY="";
 const m=/#w=([A-Za-z0-9_-]+)/.exec(location.hash);
 if(m)RO=true;
+
+/* ---------- 款式 (variants): [{n,c,own}] ---------- */
+const TWICE=[["娜璉","#5bc0eb"],["定延","#b9d86a"],["Momo","#f68fae"],["Sana","#9b86d6"],["志效","#f9bf5b"],["Mina","#62cdb3"],["多賢","#ffffff"],["彩瑛","#e8383d"],["子瑜","#1d5fbf"]];
+const VCOLORS=["#f6a7c1","#9fc8f0","#b6e0a0","#f8d27a","#c9b3ef","#f5b38a"];
+const fgOf=c=>{const m=/^#(..)(..)(..)$/.exec(c||"");if(!m)return"#35291f";const [r,g,b]=m.slice(1).map(h=>parseInt(h,16));return (r*299+g*587+b*114)/1000>150?"#35291f":"#ffffff"};
+const vStyle=v=>`--c:${v.c||"#e9dccd"};--fg:${fgOf(v.c||"#e9dccd")}${(v.c||"").toLowerCase()==="#ffffff"?";border-color:#cfc3b6":""}`;
+const hasVars=i=>Array.isArray(i.vars)&&i.vars.length>0;
+const needVars=i=>hasVars(i)?i.vars.filter(v=>!v.own):[];
+const allHave=i=>hasVars(i)&&!needVars(i).length;
+function varsHTML(i){
+  if(!hasVars(i))return"";
+  const n=needVars(i).length;
+  return `<div class="vlbl">${n?`還缺 ${n} 款`:"✓ 全部收集了"}</div><div class="vars">${i.vars.map(v=>`<span class="vchip${v.own?" own":""}" style="${vStyle(v)}">${esc(v.n)}</span>`).join("")}</div>`;
+}
+function matrixHTML(arr){
+  const cols=[];arr.forEach(i=>(i.vars||[]).forEach(v=>{if(!cols.some(c=>c.n===v.n))cols.push(v)}));
+  return `<div class="mtx"><table><tr><th></th><th>價格</th>${cols.map(c=>`<th class="c" style="${vStyle(c)}">${esc(c.n)}</th>`).join("")}</tr>${arr.map(i=>{
+    const link=safeUrl(i.link);
+    return `<tr data-id="${esc(i.id)}"><td class="nm">${link?`<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(i.name)}</a>`:esc(i.name)}</td><td>${esc(i.price||"")}</td>${cols.map(c=>{const v=(i.vars||[]).find(x=>x.n===c.n);return v?(v.own?`<td class="own">✔</td>`:`<td class="need">${RO?"缺":""}</td>`):`<td class="no"></td>`}).join("")}</tr>`}).join("")}</table></div>`;
+}
 
 /* ---------- categories (sections, like the tabs/headers in the old sheet) and countries (filter) ---------- */
 const regOf=i=>(i.reg||"").trim()||"未填地區";
@@ -313,14 +357,14 @@ function regOrder(list){
 /* ---------- render ---------- */
 function persist(){ls.set(DATA_KEY,JSON.stringify({items,savedAt:new Date().toISOString()}));ls.set(DIRTY_KEY,"1");setSyncUI()}
 function saveView(){if(!RO)ls.set(VIEW_KEY,JSON.stringify({st:view.st,reg:view.reg,cat:view.cat}))}
-const matchQ=i=>{const q=view.q.trim().toLowerCase();if(!q)return true;return [i.name,i.pick,i.cat,i.reg,i.shop,i.note,i.memo,i.price].some(v=>String(v||"").toLowerCase().includes(q))};
+const matchQ=i=>{const q=view.q.trim().toLowerCase();if(!q)return true;return [i.name,i.pick,(i.vars||[]).map(v=>v.n).join(" "),i.cat,i.reg,i.shop,i.note,i.memo,i.price].some(v=>String(v||"").toLowerCase().includes(q))};
 const matchSt=i=>RO?(view.st==="all"||(view.st==="mine")===mine.has(i.id)):(view.st==="all"||i.st===view.st);
 const sortItems=a=>a.slice().sort((x,y)=>(x.at||0)-(y.at||0));
 const shortUrl=u=>u.replace(/^https?:\/\/(www\.)?/,"");
 
 function cardHTML(i){
   const img=safeUrl(i.img),link=safeUrl(i.link),isMine=RO&&mine.has(i.id);
-  const cls=["card",i.prio&&i.st==="want"?"prio":"",!RO&&i.st!=="want"?i.st:"",isMine?"mine":""].filter(Boolean).join(" ");
+  const cls=["card",allHave(i)?"done":"",i.prio&&i.st==="want"?"prio":"",!RO&&i.st!=="want"?i.st:"",isMine?"mine":""].filter(Boolean).join(" ");
   const sub=[i.shop?"📍 "+esc(i.shop):"",i.price?esc(i.price):"",!RO&&i.st==="got"&&i.by?"託 "+esc(i.by):""].filter(Boolean).join("　");
   return `<div class="${cls}" data-id="${esc(i.id)}" role="button" tabindex="0">
     <div class="head"><div class="nm">${esc(i.name||"（沒有名稱）")}${i.pick?` <span class="pick">(${esc(i.pick)})</span>`:""}</div>
@@ -329,13 +373,14 @@ function cardHTML(i){
       ${i.prio&&i.st==="want"?`<span class="badge">♥ 特別想要</span>`:""}
       ${!RO&&i.st!=="want"?`<span class="badge st ${i.st}">${i.st==="got"?"✓ 已入手":"不要了"}</span>`:""}
       ${+i.qty>1?`<span class="badge qty">×${+i.qty}</span>`:""}</div>
-    <div class="body">${sub?`<div class="meta">${sub}</div>`:""}${i.note?`<div class="nt">${esc(i.note)}</div>`:""}${RO?`<div class="acts"><button type="button" class="b-mine" aria-pressed="${isMine}">${isMine?"✓ 我買了":"我買了"}</button></div>`:""}</div></div>`;
+    <div class="body">${varsHTML(i)}${sub?`<div class="meta">${sub}</div>`:""}${i.note?`<div class="nt">${esc(i.note)}</div>`:""}${RO?`<div class="acts"><button type="button" class="b-mine" aria-pressed="${isMine}">${isMine?"✓ 我買了":"我買了"}</button></div>`:""}</div></div>`;
 }
 
 function chipRow(el,key,all,keys,cntFn){
   if(view[key]!=="all"&&!keys.includes(view[key]))view[key]="all";
   el.innerHTML=keys.length>1?["all",...keys].map(k=>`<button class="chip" data-k="${key}" data-v="${esc(k)}" aria-pressed="${view[key]===k}">${k==="all"?all:esc(k)}<small>${cntFn(k)}</small></button>`).join(""):"";
 }
+let tables=new Set();try{tables=new Set(JSON.parse(ls.get("wishlist-tables")||"[]"))}catch(e){}
 function render(){
   const base=items.filter(matchSt);
   const pool=RO?items:items.filter(i=>view.st==="all"||i.st===view.st);
@@ -347,7 +392,9 @@ function render(){
   const list=sortItems(base.filter(i=>inReg(i)&&inCat(i)&&matchQ(i)));
   const groups=new Map();cats.forEach(c=>groups.set(c,[]));list.forEach(i=>{const c=catOf(i);if(!groups.has(c))groups.set(c,[]);groups.get(c).push(i)});
   let html="";
-  for(const [c,arr] of groups){if(!arr.length)continue;html+=`<section><h2>${esc(c)}<span class="cnt">${arr.length} 項</span></h2><div class="grid">${arr.map(cardHTML).join("")}</div></section>`}
+  for(const [c,arr] of groups){if(!arr.length)continue;
+    const canT=arr.filter(hasVars).length>1,isT=canT&&tables.has(c);
+    html+=`<section><h2>${esc(c)}${canT?`<button class="tbtn" data-t="${esc(c)}">${isT?"看大圖":"看表格"}</button>`:""}<span class="cnt">${arr.length} 項</span></h2>${isT?matrixHTML(arr):`<div class="grid">${arr.map(cardHTML).join("")}</div>`}</section>`}
   if(!html){
     html=!items.length&&!RO?`<div class="empty">還沒有東西。<br>把出國時想請人帶的東西加進來，再「分享給朋友」。<br><button class="btn primary" onclick="openEdit()">＋ 新增第一個</button></div>`
       :`<div class="empty">${view.q?"找不到符合的項目":RO&&view.st==="mine"?"還沒勾「我買了」":"這裡沒有東西"}</div>`;
@@ -372,7 +419,8 @@ $("#roFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.
 $("#q").oninput=e=>{view.q=e.target.value;render()};
 $("#list").addEventListener("click",e=>{
   if(e.target.closest("a"))return;
-  const card=e.target.closest(".card");if(!card)return;
+  const tb=e.target.closest(".tbtn");if(tb){const c=tb.dataset.t;tables.has(c)?tables.delete(c):tables.add(c);ls.set("wishlist-tables",JSON.stringify([...tables]));render();return}
+  const card=e.target.closest(".card,tr[data-id]");if(!card)return;
   const it=items.find(i=>i.id===card.dataset.id);if(!it)return;
   if(e.target.closest(".b-mine")){toggleMine(it.id);return}
   RO?openView(it):openEdit(it);
@@ -380,14 +428,20 @@ $("#list").addEventListener("click",e=>{
 $("#list").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList.contains("card"))e.target.click()});
 
 /* ---------- own: add / edit ---------- */
-let editing=null;
+let editing=null,editVars=[];
+function drawVars(){$("#e-vars").innerHTML=editVars.map((v,k)=>`<span class="vchip${v.own?" own":""}" data-k="${k}" style="${vStyle(v)}" title="點一下切換還缺／已有">${v.own?"✓ ":""}${esc(v.n)}<button type="button" class="x" data-x="${k}" title="移除這款">×</button></span>`).join("")}
+$("#e-vars").onclick=e=>{const x=e.target.closest("[data-x]");if(x){editVars.splice(+x.dataset.x,1);drawVars();return}
+  const c=e.target.closest(".vchip");if(c){const v=editVars[+c.dataset.k];v.own=v.own?0:1;drawVars()}};
+function addVar(){const n=$("#e-vadd").value.trim();if(!n)return;if(!editVars.some(v=>v.n===n))editVars.push({n,c:VCOLORS[editVars.length%VCOLORS.length],own:0});$("#e-vadd").value="";drawVars();$("#e-vadd").focus()}
+$("#e-vaddb").onclick=addVar;$("#e-vadd").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addVar()}};
+$("#e-twice").onclick=()=>{TWICE.forEach(([n,c])=>{if(!editVars.some(v=>v.n===n))editVars.push({n,c,own:0})});drawVars()};
 function showPic(box,url){url=safeUrl(url);box.hidden=!url;box.innerHTML=url?`<img src="${esc(url)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.hidden=true">`:""}
 function openEdit(it){
   editing=it||null;const i=it||{st:"want",cat:view.cat!=="all"&&view.cat!=="其他"?view.cat:"",reg:view.reg!=="all"&&view.reg!=="未填地區"?view.reg:(ls.get("wishlist-lastreg")||"")};
   $("#e-h").textContent=it?"編輯":"新增想要的東西";
   $("#e-name").value=i.name||"";$("#e-pick").value=i.pick||"";$("#e-cat").value=i.cat||"";$("#e-reg").value=i.reg||"";$("#e-shop").value=i.shop||"";$("#e-price").value=i.price||"";
   $("#e-qty").value=+i.qty>1?i.qty:"";$("#e-img").value=i.img||"";$("#e-link").value=i.link||"";$("#e-note").value=i.note||"";$("#e-memo").value=i.memo||"";
-  $("#e-prio").checked=!!i.prio;$("#e-st").value=i.st||"want";$("#e-by").value=i.by||"";$("#e-by-l").hidden=$("#e-st").value!=="got";
+  editVars=(i.vars||[]).map(v=>({...v}));drawVars();$("#e-vadd").value="";$("#e-prio").checked=!!i.prio;$("#e-st").value=i.st||"want";$("#e-by").value=i.by||"";$("#e-by-l").hidden=$("#e-st").value!=="got";
   $("#e-del").hidden=$("#e-up").hidden=$("#e-down").hidden=!it;showPic($("#e-pic"),i.img);$("#editDlg").showModal();if(!it)$("#e-name").focus();
 }
 $("#e-st").onchange=()=>{$("#e-by-l").hidden=$("#e-st").value!=="got"};
@@ -395,7 +449,8 @@ $("#e-img").oninput=()=>showPic($("#e-pic"),$("#e-img").value.trim());
 $("#e-save").onclick=()=>{
   const name=$("#e-name").value.trim();if(!name){toast("請填名稱");$("#e-name").focus();return}
   const v={name,pick:$("#e-pick").value.trim(),cat:$("#e-cat").value.trim(),reg:$("#e-reg").value.trim(),shop:$("#e-shop").value.trim(),price:$("#e-price").value.trim(),qty:Math.max(1,parseInt($("#e-qty").value)||1),
-    img:$("#e-img").value.trim(),link:$("#e-link").value.trim(),note:$("#e-note").value.trim(),memo:$("#e-memo").value.trim(),prio:$("#e-prio").checked,st:$("#e-st").value,by:$("#e-by").value.trim()};
+    img:$("#e-img").value.trim(),link:$("#e-link").value.trim(),note:$("#e-note").value.trim(),memo:$("#e-memo").value.trim(),prio:$("#e-prio").checked,st:$("#e-st").value,by:$("#e-by").value.trim(),vars:editVars.map(v=>({n:v.n,c:v.c,own:v.own?1:0}))};
+  if(!v.vars.length)delete v.vars;
   if(v.st!=="got")v.by=editing?.st==="got"?"":v.by;
   if(editing)Object.assign(editing,v);else items.push({id:uid(),at:Date.now(),...v});
   if(v.reg)ls.set("wishlist-lastreg",v.reg);
@@ -416,7 +471,8 @@ $("#e-up").onclick=()=>moveItem(-1);$("#e-down").onclick=()=>moveItem(1);
 function openView(i){
   showPic($("#v-pic"),i.img);$("#v-name").innerHTML=esc(i.name)+(i.pick?` <span style="color:#d4252b">(${esc(i.pick)})</span>`:"");
   const link=safeUrl(i.link);
-  const rows=[["分類",i.cat],["地區",i.reg],["哪裡買",i.shop],["參考價格",i.price],["數量",+i.qty>1?i.qty+" 個":""],["說明",i.note]].filter(r=>r[1]);
+  const need=needVars(i).map(v=>v.n).join("、");
+  const rows=[["還缺",need],["分類",i.cat],["地區",i.reg],["哪裡買",i.shop],["參考價格",i.price],["數量",+i.qty>1?i.qty+" 個":""],["說明",i.note]].filter(r=>r[1]);
   $("#v-kv").innerHTML=(i.prio?`<dt>♥</dt><dd style="color:var(--heart);font-weight:700">特別想要</dd>`:"")+rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")+(link?`<dt>連結</dt><dd><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">打開商品頁 ↗</a></dd>`:"");
   const upd=()=>{const on=mine.has(i.id);$("#v-mine").textContent=on?"取消「我買了」":"✓ 我買了";$("#v-mine").className="btn "+(on?"":"primary")};
   $("#v-mine").onclick=()=>{toggleMine(i.id);upd()};upd();$("#viewDlg").showModal();
@@ -424,14 +480,14 @@ function openView(i){
 function toggleMine(id){mine.has(id)?mine.delete(id):mine.add(id);ls.set(MINE_KEY,JSON.stringify([...mine]));render()}
 $("#trayBtn").onclick=async()=>{
   const got=items.filter(i=>mine.has(i.id));
-  const text=`我幫你買了 ${got.length} 項：\n`+got.map(i=>"・"+i.name+(i.pick?"（"+i.pick+"）":"")+(+i.qty>1?" ×"+i.qty:"")).join("\n");
+  const text=`我幫你買了 ${got.length} 項：\n`+got.map(i=>"・"+i.name+(i.pick?"（"+i.pick+"）":"")+(needVars(i).length?"（缺："+needVars(i).map(v=>v.n).join("、")+"）":"")+(+i.qty>1?" ×"+i.qty:"")).join("\n");
   if(navigator.share){try{await navigator.share({text});return}catch(e){if(e.name==="AbortError")return}}
   try{await navigator.clipboard.writeText(text);toast("已複製，貼到聊天室給對方")}catch(e){prompt("複製這段文字傳給對方",text)}
 };
 
 /* ---------- share dialog ---------- */
 let shareRegs=null;
-function shareItems(){return sortItems(items.filter(i=>i.st==="want"&&shareRegs.has(regOf(i))))}
+function shareItems(){return sortItems(items.filter(i=>i.st==="want"&&!allHave(i)&&shareRegs.has(regOf(i))))}
 let shareSeq=0;
 async function updateShare(){
   const seq=++shareSeq,list=shareItems();
@@ -451,7 +507,7 @@ async function updateShare(){
 }
 $("#m-share").onclick=()=>{
   closeMenu();
-  const wants=items.filter(i=>i.st==="want");if(!wants.length){toast("還沒有「想要」的東西可以分享");return}
+  const wants=items.filter(i=>i.st==="want"&&!allHave(i));if(!wants.length){toast("還沒有「想要」的東西可以分享");return}
   const regs=regOrder(wants);shareRegs=new Set(view.reg!=="all"&&regs.includes(view.reg)?[view.reg]:regs);
   let me={};try{me=JSON.parse(ls.get(ME_KEY)||"{}")}catch(e){}
   $("#sh-name").value=me.name||"";$("#sh-msg").value=me.msg||"";
@@ -479,6 +535,11 @@ $("#importFile").onchange=async e=>{
   const f=e.target.files[0];e.target.value="";if(!f)return;
   let d;try{d=JSON.parse(await f.text())}catch(err){toast("看不懂這個檔案");return}
   if(!d||!Array.isArray(d.items)){toast("看不懂這個檔案");return}
+  if(d.append&&items.length){
+    const key=i=>(i.name||"")+"|"+(i.link||""),have=new Set(items.map(key)),add=d.items.filter(i=>!have.has(key(i)));
+    if(!confirm(`把 ${add.length} 項加進目前的清單？`+(d.items.length-add.length?`（${d.items.length-add.length} 項已經有了，會略過）`:"")))return;
+    const t=Date.now();add.forEach((i,k)=>items.push({...i,id:uid()+k,at:t+k}));persist();render();toast(`已加入 ${add.length} 項`);return;
+  }
   if(!confirm(`用備份檔的 ${d.items.length} 項取代這台的 ${items.length} 項？`))return;
   items=d.items;persist();render();toast("已匯入");
 };
