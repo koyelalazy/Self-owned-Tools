@@ -177,7 +177,8 @@ html:not(.ro) .ro-only{display:none!important}
   <div class="stats" id="stats"></div>
 
   <div class="bar">
-    <div class="chips" id="catChips"></div>
+    <div class="chips" id="ipChips"></div>
+    <div class="chips" id="typeChips"></div>
     <div class="row">
       <input id="q" type="search" placeholder="搜尋名稱、款式、店家、說明" autocomplete="off">
       <div class="seg own-only" id="stFilter">
@@ -195,7 +196,7 @@ html:not(.ro) .ro-only{display:none!important}
 <div id="tray" class="ro-only" hidden><span id="trayTxt"></span><button id="trayBtn">告訴對方</button></div>
 
 <input type="file" id="importFile" accept=".json,application/json" hidden>
-<datalist id="regList"></datalist><datalist id="catList"></datalist>
+<datalist id="regList"></datalist>
 
 <dialog id="editDlg">
   <form novalidate>
@@ -203,7 +204,10 @@ html:not(.ro) .ro-only{display:none!important}
     <div class="dpic" id="e-pic" hidden></div>
     <label>名稱<input id="e-name" placeholder="例如：ポケモン 30周年 メタルチャームマスコット" autocomplete="off"></label>
     <label>想要哪款（紅字，例如：皮卡丘、PK850 色號、4個）<input id="e-pick" placeholder="可空白" autocomplete="off"></label>
-    <label>分類<input id="e-cat" list="catList" placeholder="例如：扭蛋、保養品/美妝、TWICE" autocomplete="off"></label>
+    <div class="two">
+      <label>IP<select id="e-ip"></select></label>
+      <label>類型<select id="e-type"></select></label>
+    </div>
     <div class="two">
       <label>國家／地區<input id="e-reg" list="regList" placeholder="例如：日本" autocomplete="off"></label>
       <label>哪裡買得到<input id="e-shop" placeholder="例如：成田機場、唐吉訶德" autocomplete="off"></label>
@@ -299,11 +303,11 @@ const DEFAULT_REGS=["日本","韓國","泰國","香港","新加坡","美國","�
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>b.closest("dialog").close());
 
 /* ---------- data ---------- */
-// item: {id,name,pick,cat,reg,shop,price,qty,img,link,note,memo,prio,st:"want"|"got"|"drop",by,at}
+// item: {id,name,pick,ip,type,reg,shop,price,qty,img,link,note,memo,prio,st:"want"|"got"|"drop",by,at}
 const DATA_KEY="wishlist-data",VIEW_KEY="wishlist-view",DIRTY_KEY="wishlist-dirty",SHA_KEY="wishlist-gh-sha",ME_KEY="wishlist-share";
 let items=[];
 try{const d=JSON.parse(ls.get(DATA_KEY)||"null");if(d&&Array.isArray(d.items))items=d.items}catch(e){}
-let view={st:"want",reg:"all",cat:"all",q:""};
+let view={st:"want",reg:"all",ip:"all",type:"all",q:""};
 try{Object.assign(view,JSON.parse(ls.get(VIEW_KEY)||"{}"),{q:""})}catch(e){}
 
 /* ---------- share link: the shared items travel compressed in the URL fragment (never sent to any server) ---------- */
@@ -317,8 +321,8 @@ async function unpackShare(s){const kind=s[0],u8=unb64u(s.slice(1));
   const raw=kind==="z"?await pipe(u8,new DecompressionStream("deflate-raw")):u8;
   return JSON.parse(new TextDecoder().decode(raw))}
 // shared item = [name,reg,shop,price,qty,img,link,note,prio,cat,pick]
-const toShare=i=>[i.name||"",i.reg||"",i.shop||"",i.price||"",+i.qty>1?+i.qty:0,i.img||"",i.link||"",i.note||"",i.prio?1:0,i.cat||"",i.pick||"",hasVars(i)?i.vars.map(v=>[v.n,v.c||"",v.own?1:0]):0];
-const fromShare=(a,k)=>({id:"s"+k,name:a[0],reg:a[1],shop:a[2],price:a[3],qty:a[4]||1,img:a[5],link:a[6],note:a[7],prio:!!a[8],cat:a[9]||"",pick:a[10]||"",vars:Array.isArray(a[11])?a[11].map(v=>({n:v[0],c:v[1],own:v[2]})):undefined,st:"want",at:k});
+const toShare=i=>[i.name||"",i.reg||"",i.shop||"",i.price||"",+i.qty>1?+i.qty:0,i.img||"",i.link||"",i.note||"",i.prio?1:0,ipOf(i),i.pick||"",hasVars(i)?i.vars.map(v=>[v.n,v.c||"",v.own?1:0]):0,typeOf(i)];
+const fromShare=(a,k)=>({id:"s"+k,name:a[0],reg:a[1],shop:a[2],price:a[3],qty:a[4]||1,img:a[5],link:a[6],note:a[7],prio:!!a[8],...(a.length>12?{ip:a[9],type:a[12]}:{cat:a[9]||""}),pick:a[10]||"",vars:Array.isArray(a[11])?a[11].map(v=>({n:v[0],c:v[1],own:v[2]})):undefined,st:"want",at:k});
 
 let shared=null,RO=false,mine=new Set(),MINE_KEY="";
 const m=/#w=([A-Za-z0-9_-]+)/.exec(location.hash);
@@ -346,9 +350,17 @@ function matrixHTML(arr){
 
 /* ---------- categories (sections, like the tabs/headers in the old sheet) and countries (filter) ---------- */
 const regOf=i=>(i.reg||"").trim()||"未填地區";
-const catOf=i=>(i.cat||"").trim()||"其他";
+// IP and 類型 are fixed lists; older items had one free-text cat like "TWICE 扭蛋", read once into ip/type.
+const IPS=["TWICE","寶可夢","吉伊卡哇","自嘲熊","其他"],TYPES=["娃娃","扭蛋","泡澡球","食玩","一番賞","鐵牌","其他"];
+function norm(i){
+  if(i.cat!==undefined&&i.ip===undefined&&i.type===undefined){const c=i.cat||"";i.ip=IPS.find(x=>c.includes(x))||(/ポケモン|pokemon|皮卡丘/i.test(c)?"寶可夢":/ちいかわ|吉伊/.test(c)?"吉伊卡哇":"其他");i.type=TYPES.find(x=>c.includes(x))||"其他"}
+  delete i.cat;return i;
+}
+const ipOf=i=>IPS.includes(i.ip)?i.ip:"其他",typeOf=i=>TYPES.includes(i.type)?i.type:"其他";
+const catOf=i=>ipOf(i)+"・"+typeOf(i);
 // categories keep the order they were first used; countries go by count
-function catOrder(list){const o=[];sortItems(list).forEach(i=>{const c=catOf(i);if(!o.includes(c))o.push(c)});return o.filter(c=>c!=="其他").concat(o.includes("其他")?["其他"]:[])}
+function catOrder(list){const o=[];IPS.forEach(a=>TYPES.forEach(b=>{const c=a+"・"+b;if(list.some(i=>catOf(i)===c))o.push(c)}));return o}
+const usedIn=(list,arr,f)=>arr.filter(x=>list.some(i=>f(i)===x));
 function regOrder(list){
   const cnt=new Map();list.forEach(i=>cnt.set(regOf(i),(cnt.get(regOf(i))||0)+1));
   return [...cnt.keys()].sort((a,b)=>(a==="未填地區")-(b==="未填地區")||cnt.get(b)-cnt.get(a)||a.localeCompare(b,"zh-Hant"));
@@ -356,8 +368,8 @@ function regOrder(list){
 
 /* ---------- render ---------- */
 function persist(){ls.set(DATA_KEY,JSON.stringify({items,savedAt:new Date().toISOString()}));ls.set(DIRTY_KEY,"1");setSyncUI()}
-function saveView(){if(!RO)ls.set(VIEW_KEY,JSON.stringify({st:view.st,reg:view.reg,cat:view.cat}))}
-const matchQ=i=>{const q=view.q.trim().toLowerCase();if(!q)return true;return [i.name,i.pick,(i.vars||[]).map(v=>v.n).join(" "),i.cat,i.reg,i.shop,i.note,i.memo,i.price].some(v=>String(v||"").toLowerCase().includes(q))};
+function saveView(){if(!RO)ls.set(VIEW_KEY,JSON.stringify({st:view.st,reg:view.reg,ip:view.ip,type:view.type}))}
+const matchQ=i=>{const q=view.q.trim().toLowerCase();if(!q)return true;return [i.name,i.pick,(i.vars||[]).map(v=>v.n).join(" "),i.ip,i.type,i.reg,i.shop,i.note,i.memo,i.price].some(v=>String(v||"").toLowerCase().includes(q))};
 const matchSt=i=>RO?(view.st==="all"||(view.st==="mine")===mine.has(i.id)):(view.st==="all"||i.st===view.st);
 const sortItems=a=>a.slice().sort((x,y)=>(x.at||0)-(y.at||0));
 const shortUrl=u=>u.replace(/^https?:\/\/(www\.)?/,"");
@@ -382,11 +394,14 @@ function chipRow(el,key,all,keys,cntFn){
 }
 let tables=new Set();try{tables=new Set(JSON.parse(ls.get("wishlist-tables")||"[]"))}catch(e){}
 function render(){
+  items.forEach(norm);
   const base=items.filter(matchSt);
   const pool=RO?items:items.filter(i=>view.st==="all"||i.st===view.st);
-  const cats=catOrder(pool),regs=regOrder(pool);
-  const inReg=i=>view.reg==="all"||regOf(i)===view.reg,inCat=i=>view.cat==="all"||catOf(i)===view.cat;
-  chipRow($("#catChips"),"cat","全部分類",cats,k=>base.filter(i=>inReg(i)&&(k==="all"||catOf(i)===k)).length);
+  const cats=catOrder(pool),regs=regOrder(pool),ips=usedIn(pool,IPS,ipOf),types=usedIn(pool,TYPES,typeOf);
+  const inReg=i=>view.reg==="all"||regOf(i)===view.reg,inIp=i=>view.ip==="all"||ipOf(i)===view.ip,inType=i=>view.type==="all"||typeOf(i)===view.type;
+  const inCat=i=>inIp(i)&&inType(i);
+  chipRow($("#ipChips"),"ip","全部 IP",ips,k=>base.filter(i=>inReg(i)&&inType(i)&&(k==="all"||ipOf(i)===k)).length);
+  chipRow($("#typeChips"),"type","全部類型",types,k=>base.filter(i=>inReg(i)&&inIp(i)&&(k==="all"||typeOf(i)===k)).length);
   chipRow($("#regChips"),"reg","全部地區",regs,k=>base.filter(i=>inCat(i)&&(k==="all"||regOf(i)===k)).length);
   document.querySelectorAll(`#${RO?"roFilter":"stFilter"} button`).forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===view.st));
   const list=sortItems(base.filter(i=>inReg(i)&&inCat(i)&&matchQ(i)));
@@ -411,7 +426,7 @@ function render(){
   }
   const opts=a=>[...new Set(a)].map(r=>`<option value="${esc(r)}">`).join("");
   $("#regList").innerHTML=opts([...DEFAULT_REGS,...items.map(i=>(i.reg||"").trim()).filter(Boolean)]);
-  $("#catList").innerHTML=opts(items.map(i=>(i.cat||"").trim()).filter(Boolean));
+
 }
 document.querySelector(".bar").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;view[b.dataset.k]=b.dataset.v;saveView();render()});
 $("#stFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;saveView();render()};
@@ -437,18 +452,20 @@ $("#e-vaddb").onclick=addVar;$("#e-vadd").onkeydown=e=>{if(e.key==="Enter"){e.pr
 $("#e-twice").onclick=()=>{TWICE.forEach(([n,c])=>{if(!editVars.some(v=>v.n===n))editVars.push({n,c,own:0})});drawVars()};
 function showPic(box,url){url=safeUrl(url);box.hidden=!url;box.innerHTML=url?`<img src="${esc(url)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.hidden=true">`:""}
 function openEdit(it){
-  editing=it||null;const i=it||{st:"want",cat:view.cat!=="all"&&view.cat!=="其他"?view.cat:"",reg:view.reg!=="all"&&view.reg!=="未填地區"?view.reg:(ls.get("wishlist-lastreg")||"")};
+  editing=it||null;const i=it||{st:"want",ip:view.ip!=="all"?view.ip:"",type:view.type!=="all"?view.type:"",reg:view.reg!=="all"&&view.reg!=="未填地區"?view.reg:(ls.get("wishlist-lastreg")||"")};
   $("#e-h").textContent=it?"編輯":"新增想要的東西";
-  $("#e-name").value=i.name||"";$("#e-pick").value=i.pick||"";$("#e-cat").value=i.cat||"";$("#e-reg").value=i.reg||"";$("#e-shop").value=i.shop||"";$("#e-price").value=i.price||"";
+  $("#e-name").value=i.name||"";$("#e-pick").value=i.pick||"";$("#e-ip").value=IPS.includes(i.ip)?i.ip:(it?"其他":"");$("#e-type").value=TYPES.includes(i.type)?i.type:(it?"其他":"");$("#e-reg").value=i.reg||"";$("#e-shop").value=i.shop||"";$("#e-price").value=i.price||"";
   $("#e-qty").value=+i.qty>1?i.qty:"";$("#e-img").value=i.img||"";$("#e-link").value=i.link||"";$("#e-note").value=i.note||"";$("#e-memo").value=i.memo||"";
   editVars=(i.vars||[]).map(v=>({...v}));drawVars();$("#e-vadd").value="";$("#e-prio").checked=!!i.prio;$("#e-st").value=i.st||"want";$("#e-by").value=i.by||"";$("#e-by-l").hidden=$("#e-st").value!=="got";
   $("#e-del").hidden=$("#e-up").hidden=$("#e-down").hidden=!it;showPic($("#e-pic"),i.img);$("#editDlg").showModal();if(!it)$("#e-name").focus();
 }
+$("#e-ip").innerHTML=`<option value="" disabled>選 IP</option>`+IPS.map(x=>`<option>${x}</option>`).join("");
+$("#e-type").innerHTML=`<option value="" disabled>選類型</option>`+TYPES.map(x=>`<option>${x}</option>`).join("");
 $("#e-st").onchange=()=>{$("#e-by-l").hidden=$("#e-st").value!=="got"};
 $("#e-img").oninput=()=>showPic($("#e-pic"),$("#e-img").value.trim());
 $("#e-save").onclick=()=>{
   const name=$("#e-name").value.trim();if(!name){toast("請填名稱");$("#e-name").focus();return}
-  const v={name,pick:$("#e-pick").value.trim(),cat:$("#e-cat").value.trim(),reg:$("#e-reg").value.trim(),shop:$("#e-shop").value.trim(),price:$("#e-price").value.trim(),qty:Math.max(1,parseInt($("#e-qty").value)||1),
+  const v={name,pick:$("#e-pick").value.trim(),ip:$("#e-ip").value||"其他",type:$("#e-type").value||"其他",reg:$("#e-reg").value.trim(),shop:$("#e-shop").value.trim(),price:$("#e-price").value.trim(),qty:Math.max(1,parseInt($("#e-qty").value)||1),
     img:$("#e-img").value.trim(),link:$("#e-link").value.trim(),note:$("#e-note").value.trim(),memo:$("#e-memo").value.trim(),prio:$("#e-prio").checked,st:$("#e-st").value,by:$("#e-by").value.trim(),vars:editVars.map(v=>({n:v.n,c:v.c,own:v.own?1:0}))};
   if(!v.vars.length)delete v.vars;
   if(v.st!=="got")v.by=editing?.st==="got"?"":v.by;
@@ -472,7 +489,7 @@ function openView(i){
   showPic($("#v-pic"),i.img);$("#v-name").innerHTML=esc(i.name)+(i.pick?` <span style="color:#d4252b">(${esc(i.pick)})</span>`:"");
   const link=safeUrl(i.link);
   const need=needVars(i).map(v=>v.n).join("、");
-  const rows=[["還缺",need],["分類",i.cat],["地區",i.reg],["哪裡買",i.shop],["參考價格",i.price],["數量",+i.qty>1?i.qty+" 個":""],["說明",i.note]].filter(r=>r[1]);
+  const rows=[["還缺",need],["IP",ipOf(i)],["類型",typeOf(i)],["地區",i.reg],["哪裡買",i.shop],["參考價格",i.price],["數量",+i.qty>1?i.qty+" 個":""],["說明",i.note]].filter(r=>r[1]);
   $("#v-kv").innerHTML=(i.prio?`<dt>♥</dt><dd style="color:var(--heart);font-weight:700">特別想要</dd>`:"")+rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")+(link?`<dt>連結</dt><dd><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">打開商品頁 ↗</a></dd>`:"");
   const upd=()=>{const on=mine.has(i.id);$("#v-mine").textContent=on?"取消「我買了」":"✓ 我買了";$("#v-mine").className="btn "+(on?"":"primary")};
   $("#v-mine").onclick=()=>{toggleMine(i.id);upd()};upd();$("#viewDlg").showModal();
@@ -655,7 +672,7 @@ $("#s-off").onclick=()=>{
     document.title=`${who}的代購願望清單`;
     $("#title").innerHTML=`${esc(who)}的願望清單<small>${when} 更新・唯讀</small>`;
     $("#roBanner").innerHTML=`<b>謝謝你願意幫忙帶東西 🙏</b><span class="msg">${shared.m?esc(shared.m)+"\n\n":""}點商品看詳細和連結。買了就按「我買了」（只記在你的手機上），最後按下面的「告訴對方」把清單傳回去。標 ♥ 的是特別想要的。</span>`;
-    view={st:"all",reg:"all",cat:"all",q:""};
+    view={st:"all",reg:"all",ip:"all",type:"all",q:""};
   }else if(/^#sync=/.test(location.hash)){importSetup(location.hash);history.replaceState(null,"",location.pathname+location.search)}
   render();if(!RO)setSyncUI();
 })();
