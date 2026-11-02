@@ -109,7 +109,10 @@ html.dense .mvbtns svg{width:15px;height:15px}
 .card.prio{border:2px solid var(--heart)}
 .card.opt{border:2px dashed var(--muted)}
 .card.opt .head{background:rgba(127,127,127,.13)}
-.otag{display:inline-block;vertical-align:2px;margin-right:4px;padding:0 7px;border-radius:99px;background:var(--muted);color:var(--paper);font-size:11px;font-weight:700;line-height:18px;white-space:nowrap}
+.otag{display:inline-block;vertical-align:2px;margin-right:4px;padding:0 7px;border:0;border-radius:99px;background:var(--muted);color:var(--paper);font:inherit;font-size:11px;font-weight:700;line-height:18px;white-space:nowrap;cursor:pointer}
+.ro .otag{cursor:default}
+.otag.lv1{background:var(--accent)}
+.otag.lv2{background:var(--heart)}
 .card.got,.card.drop{opacity:.6}
 .card.mine{border-color:var(--got);box-shadow:0 0 0 1px var(--got) inset}
 .card .head{padding:8px 12px;background:var(--accent-soft);display:flex;align-items:flex-start;gap:8px}
@@ -274,6 +277,11 @@ html:not(.ro) .ro-only{display:none!important}
   <form novalidate>
     <h3 id="e-h">新增想要的東西</h3>
     <div class="dpic" id="e-pic" hidden></div>
+    <div class="two">
+      <label>程度<select id="e-lv"><option value="0">非必要</option><option value="1">想要</option><option value="2">♥ 必買</option></select></label>
+      <label>狀態<select id="e-st"><option value="want">想要</option><option value="got">已入手</option><option value="drop">不要了</option></select></label>
+    </div>
+    <label id="e-by-l">誰幫忙帶的<input id="e-by" placeholder="例如：小美 2026/11" autocomplete="off"></label>
     <label>名稱<input id="e-name" placeholder="例如：ポケモン 30周年 メタルチャームマスコット" autocomplete="off"></label>
     <label>想要哪款（紅字，例如：皮卡丘、PK850 色號、4個）<input id="e-pick" placeholder="可空白" autocomplete="off"></label>
     <div class="two">
@@ -296,11 +304,6 @@ html:not(.ro) .ro-only{display:none!important}
     <div><p class="hint" style="margin-bottom:6px">款式收集（可空白）：點一下切換「還缺／已有」，朋友會看到還缺哪幾款</p>
       <div id="e-vars"></div>
       <div class="vadd" style="margin-top:6px"><input id="e-vadd" placeholder="加一款，例如：皮卡丘" autocomplete="off"><button type="button" class="btn" id="e-vaddb">加</button><button type="button" class="btn" id="e-twice">套用 TWICE 9人</button></div></div>
-    <label>想要程度<select id="e-lv"><option value="2">♥ 特別想要</option><option value="1">想要</option><option value="0">隨緣（為了收齊，不一定要）</option></select></label>
-    <div class="two">
-      <label>狀態<select id="e-st"><option value="want">想要</option><option value="got">已入手</option><option value="drop">不要了</option></select></label>
-      <label id="e-by-l">誰幫忙帶的<input id="e-by" placeholder="例如：小美 2026/11" autocomplete="off"></label>
-    </div>
     <div class="acts2">
       <button type="button" class="btn danger" id="e-del" hidden>刪除</button>
       <button type="button" class="btn" data-close>取消</button>
@@ -377,7 +380,7 @@ document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>b.closest("di
   if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()})});
 
 /* ---------- data ---------- */
-// item: {id,name,pick,ip,type,reg,shop,price,qty,img,link,note,memo,prio,opt (1 = 隨緣: only to complete a set, not needed),st:"want"|"got"|"drop",by,at}
+// item: {id,name,pick,ip,type,reg,shop,price,qty,img,link,note,memo,prio,opt (1 = 非必要: only to complete a set, not needed),st:"want"|"got"|"drop",by,at}
 const DATA_KEY="wishlist-data",VIEW_KEY="wishlist-view",DIRTY_KEY="wishlist-dirty",SHA_KEY="wishlist-gh-sha",ME_KEY="wishlist-share";
 let items=[];
 try{const d=JSON.parse(ls.get(DATA_KEY)||"null");if(d&&Array.isArray(d.items))items=d.items}catch(e){}
@@ -456,13 +459,16 @@ const matchSt=i=>RO?(view.st==="all"||(view.st==="mine")===mine.has(i.id)):(view
 const sortItems=a=>a.slice().sort((x,y)=>(x.at||0)-(y.at||0));
 const shortUrl=u=>u.replace(/^https?:\/\/(www\.)?/,"");
 
+const LV=[["非必要","為了收齊，不一定要，有看到再買就好"],["想要","想要"],["必買","最想要，看到請幫我買"]];
+const lvOf=i=>i.prio?2:i.opt?0:1;
+const lvTag=i=>{const l=lvOf(i);return `<${RO?"span":"button type=\"button\""} class="otag lv${l}" title="${LV[l][1]}${RO?"":"（點一下換程度）"}">${LV[l][0]}</${RO?"span":"button"}>`};
 function cardHTML(i){
   const img=safeUrl(i.img),link=safeUrl(i.link),isMine=RO&&mine.has(i.id);
   const cls=["card",allHave(i)?"done":"",i.prio&&i.st==="want"?"prio":"",i.opt&&!i.prio&&i.st==="want"?"opt":"",!RO&&i.st!=="want"?i.st:"",isMine?"mine":""].filter(Boolean).join(" ");
   const sub=[i.shop?"📍 "+esc(i.shop):"",i.price?esc(i.price):"",!RO&&i.st==="got"&&i.by?"託 "+esc(i.by):""].filter(Boolean).join("　");
   return `<div class="${cls}" data-id="${esc(i.id)}" role="button" tabindex="0">
-    <div class="head">${!RO||i.prio?`<button type="button" class="hbtn" aria-pressed="${!!i.prio}" title="${i.prio?"特別想要（再按一下取消）":"標成特別想要"}"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7.5-4.6-9.5-9.3C1.1 8.3 3.3 4.5 7 4.5c2.1 0 3.6 1.1 5 2.9 1.4-1.8 2.9-2.9 5-2.9 3.7 0 5.9 3.8 4.5 7.2C19.5 16.4 12 21 12 21z"/></svg></button>`:""}
-      <div class="ti"><div class="nm">${i.opt&&!i.prio?`<span class="otag" title="收集齊全用，不一定要，有看到再買就好">隨緣</span>`:""}${esc(i.name||"（沒有名稱）")}${i.pick?` <span class="pick">(${esc(i.pick)})</span>`:""}</div>
+    <div class="head">
+      <div class="ti"><div class="nm">${lvTag(i)}${esc(i.name||"（沒有名稱）")}${i.pick?` <span class="pick">(${esc(i.pick)})</span>`:""}</div>
       ${link?`<a class="lnk" href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(shortUrl(link))}</a>`:""}</div>
       ${RO?"":`<div class="mvbtns"><button type="button" class="b-up" title="往前移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button><button type="button" class="b-down" title="往後移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button></div>`}</div>
     <div class="pic">${img?`<img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'🎁'}))">`:`<span class="ph">🎁</span>`}
@@ -513,11 +519,11 @@ function render(){
   $("#list").innerHTML=html;
   if(RO){
     const n=items.length,b=items.filter(i=>mine.has(i.id)).length;
-    $("#stats").innerHTML=`<span>共 <b>${n}</b> 項</span>`+(items.some(i=>i.prio)?`<span>♥ 特別想要 <b>${items.filter(i=>i.prio).length}</b></span>`:"")+(items.some(i=>i.opt&&!i.prio)?`<span>隨緣 <b>${items.filter(i=>i.opt&&!i.prio).length}</b></span>`:"");
+    $("#stats").innerHTML=`<span>共 <b>${n}</b> 項</span>`+(items.some(i=>i.prio)?`<span>♥ 必買 <b>${items.filter(i=>i.prio).length}</b></span>`:"")+(items.some(i=>i.opt&&!i.prio)?`<span>非必要 <b>${items.filter(i=>i.opt&&!i.prio).length}</b></span>`:"");
     $("#tray").hidden=!b;$("#trayTxt").textContent=`你勾了 ${b} 項`;
   }else{
     const c=s=>items.filter(i=>i.st===s).length;
-    $("#stats").innerHTML=`<span>想要 <b>${c("want")}</b></span><span>♥ 特別想要 <b>${items.filter(i=>i.st==="want"&&i.prio).length}</b></span><span>隨緣 <b>${items.filter(i=>i.st==="want"&&i.opt&&!i.prio).length}</b></span><span>已入手 <b>${c("got")}</b></span>`;
+    $("#stats").innerHTML=`<span>想要 <b>${c("want")}</b></span><span>♥ 必買 <b>${items.filter(i=>i.st==="want"&&i.prio).length}</b></span><span>非必要 <b>${items.filter(i=>i.st==="want"&&i.opt&&!i.prio).length}</b></span><span>已入手 <b>${c("got")}</b></span>`;
     $("#sub").textContent="出國幫帶清單";
   }
   const opts=a=>[...new Set(a)].map(r=>`<option value="${esc(r)}">`).join("");
@@ -537,7 +543,8 @@ $("#list").addEventListener("click",e=>{
   const card=e.target.closest(".card,tr[data-id]");if(!card)return;
   const it=items.find(i=>i.id===card.dataset.id);if(!it)return;
   if(e.target.closest(".b-mine")){toggleMine(it.id);return}
-  if(!RO&&e.target.closest(".hbtn")){it.prio=!it.prio;if(it.prio)delete it.opt;persist();render();toast(it.prio?"♥ 標成特別想要":"取消特別想要");return}
+  if(!RO&&e.target.closest(".otag")){const l=(lvOf(it)+1)%3;it.prio=l===2;if(l===0)it.opt=1;else delete it.opt;persist();render();toast("程度："+LV[l][0]);return}
+  if(!RO&&e.target.closest(".hbtn")){it.prio=!it.prio;if(it.prio)delete it.opt;persist();render();toast(it.prio?"♥ 標成必買":"取消必買");return}
   if(!RO&&e.target.closest(".b-up")){moveItem(it,-1);return}
   if(!RO&&e.target.closest(".b-down")){moveItem(it,1);return}
   RO?openView(it):openEdit(it);
@@ -604,7 +611,7 @@ function showView(i){
   const link=safeUrl(i.link);
   const need=needVars(i).map(v=>v.n).join("、");
   const rows=[["還缺",need],["IP",ipOf(i)],["類型",typeOf(i)],["地區",i.reg],["哪裡買",i.shop],["參考價格",i.price],["數量",+i.qty>1?i.qty+" 個":""],["說明",i.note]].filter(r=>r[1]);
-  $("#v-kv").innerHTML=(i.prio?`<dt>♥</dt><dd style="color:var(--heart);font-weight:700">特別想要</dd>`:i.opt?`<dt>隨緣</dt><dd style="color:var(--muted);font-weight:700">為了收齊，不一定要，有看到再買就好</dd>`:"")+rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")+(link?`<dt>連結</dt><dd><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">打開商品頁 ↗</a></dd>`:"");
+  $("#v-kv").innerHTML=(i.prio?`<dt>♥</dt><dd style="color:var(--heart);font-weight:700">必買</dd>`:i.opt?`<dt>非必要</dt><dd style="color:var(--muted);font-weight:700">為了收齊，不一定要，有看到再買就好</dd>`:"")+rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")+(link?`<dt>連結</dt><dd><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">打開商品頁 ↗</a></dd>`:"");
   const upd=()=>{const on=mine.has(i.id);$("#v-mine").setAttribute("aria-pressed",on);$("#v-mine").title=on?"我買了（再按一下取消）":"我買了";$("#viewDlg").classList.toggle("mine",on)};
   $("#v-mine").onclick=()=>{toggleMine(i.id);upd()};upd();
 }
@@ -838,7 +845,7 @@ $("#s-off").onclick=()=>{
     document.title=`${who}的代購願望清單`;
     $("#title").innerHTML=`${esc(who)}的願望清單<small>${when} 更新・唯讀</small>`;
     // collapsed by default so the items come first; the friend's choice is remembered
-    $("#roBanner").innerHTML=`<details${ls.get("wishlist-help")==="open"?" open":""}><summary>謝謝你願意幫忙帶東西 🙏</summary><span class="msg">點商品看詳細和連結。買了就按「我買了」（只記在你的手機上），最後按下面的「告訴對方」把清單傳回去。標 ♥ 的是特別想要的。</span></details>${shared.m?`<span class="own">${esc(shared.m)}</span>`:""}`;
+    $("#roBanner").innerHTML=`<details${ls.get("wishlist-help")==="open"?" open":""}><summary>謝謝你願意幫忙帶東西 🙏</summary><span class="msg">點商品看詳細和連結。買了就按「我買了」（只記在你的手機上），最後按下面的「告訴對方」把清單傳回去。標 ♥ 的是必買，標「非必要」的有看到再買就好。</span></details>${shared.m?`<span class="own">${esc(shared.m)}</span>`:""}`;
     $("#roBanner details").addEventListener("toggle",e=>ls.set("wishlist-help",e.target.open?"open":"closed"));
     view={st:"all",reg:"all",ip:"all",type:"all",q:""};
   }else if(/^#sync=/.test(location.hash)){importSetup(location.hash);history.replaceState(null,"",location.pathname+location.search)}
