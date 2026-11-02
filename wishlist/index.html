@@ -865,7 +865,7 @@ $("#s-off").onclick=()=>{
     else items=shared.i.map(fromShare);
     MINE_KEY=GID?"wishlist-mine-g-"+GID:"wishlist-mine-"+shared.t;try{mine=new Set(JSON.parse(ls.get(MINE_KEY)||"[]"))}catch(e){}
     const who=shared.n||"朋友",d=new Date(shared.t||Date.now());
-    const when=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+    const when=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
     document.title=`${who}的代購願望清單`;
     $("#title").innerHTML=`${esc(who)}的願望清單<small>${when} 更新・唯讀</small>`;
     // collapsed by default so the items come first; the friend's choice is remembered
