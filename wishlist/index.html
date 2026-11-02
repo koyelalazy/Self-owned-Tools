@@ -61,7 +61,21 @@ h1 small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
 .bar{background:var(--bg);padding:10px 0 8px;display:flex;flex-direction:column;gap:8px}
 @media (min-width:700px){.bar{position:sticky;top:0;z-index:10}}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-#q{flex:1;min-width:140px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--paper);padding:0 12px}
+.qwrap{position:relative;flex:1;min-width:0;display:flex}
+#q{flex:1;min-width:0;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--paper);padding:0 46px 0 12px}
+#fltBtn{position:absolute;right:3px;top:3px;width:34px;height:34px;border-radius:9px;border:0;background:none;color:var(--muted);display:grid;place-items:center;padding:0}
+#fltBtn svg{width:20px;height:20px}
+#fltBtn.on{background:var(--accent);color:#fff}
+#fltBtn[aria-expanded="true"]{background:var(--accent-soft);color:var(--accent)}
+#fltDot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--heart);border:1.5px solid var(--paper)}
+#fltPop{position:absolute;right:0;top:46px;z-index:30;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:8px;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+#fltPop .fh{margin:4px 6px;font-size:12px;color:var(--muted)}
+.flist{display:flex;flex-direction:column}
+.flist button{border:0;background:none;text-align:left;padding:8px 10px 8px 30px;border-radius:8px;position:relative;font-size:15px}
+.flist button:hover{background:var(--accent-soft)}
+.flist button[aria-pressed="true"]{font-weight:700;color:var(--accent)}
+.flist button[aria-pressed="true"]::before{content:"✓";position:absolute;left:10px}
+#fltPop .colsel{width:100%}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--paper)}
 .seg button{border:0;background:none;padding:7px 12px;font-size:14px;white-space:nowrap}
 .seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
@@ -227,14 +241,21 @@ html:not(.ro) .ro-only{display:none!important}
     <div class="chips" id="ipChips"></div>
     <div class="chips" id="typeChips"></div>
     <div class="row">
-      <input id="q" type="search" placeholder="搜尋名稱、款式、店家、說明" autocomplete="off">
-      <div class="seg own-only" id="stFilter">
-        <button data-v="want">想要</button><button data-v="got">已入手</button><button data-v="drop">不要了</button><button data-v="all">全部</button>
+      <div class="qwrap">
+        <input id="q" type="search" placeholder="搜尋名稱、款式、店家、說明" autocomplete="off">
+        <button type="button" id="fltBtn" title="篩選和顯示" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg><i id="fltDot" hidden></i></button>
+        <div id="fltPop" hidden>
+          <p class="fh">顯示哪些</p>
+          <div class="flist own-only" id="stFilter">
+            <button data-v="want">想要</button><button data-v="got">已入手</button><button data-v="drop">不要了</button><button data-v="all">全部</button>
+          </div>
+          <div class="flist ro-only" id="roFilter">
+            <button data-v="all">全部</button><button data-v="todo">還沒買</button><button data-v="mine">我買了</button>
+          </div>
+          <p class="fh">每排幾個</p>
+          <select id="colSel" class="colsel"><option value="1">每排 1 個</option><option value="2">每排 2 個</option><option value="3">每排 3 個</option><option value="4">每排 4 個</option></select>
+        </div>
       </div>
-      <div class="seg ro-only" id="roFilter">
-        <button data-v="all">全部</button><button data-v="todo">還沒買</button><button data-v="mine">我買了</button>
-      </div>
-      <select id="colSel" class="colsel" title="每排顯示幾個"><option value="1">每排 1 個</option><option value="2">每排 2 個</option><option value="3">每排 3 個</option><option value="4">每排 4 個</option></select>
     </div>
     <div class="chips" id="regChips"></div>
   </div>
@@ -472,6 +493,9 @@ function render(){
   chipRow($("#typeChips"),"type","全部類型",types,k=>base.filter(i=>inReg(i)&&inIp(i)&&(k==="all"||typeOf(i)===k)).length);
   chipRow($("#regChips"),"reg","全部地區",regs,k=>base.filter(i=>inCat(i)&&(k==="all"||regOf(i)===k)).length);
   document.querySelectorAll(`#${RO?"roFilter":"stFilter"} button`).forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===view.st));
+  const lbl=$(`#${RO?"roFilter":"stFilter"} button[data-v="${view.st}"]`);
+  $("#fltDot").hidden=view.st===(RO?"all":"want");$("#fltBtn").title="篩選："+(lbl?lbl.textContent:"")+"（點一下切換）";
+  $("#q").placeholder=(view.st===(RO?"all":"want")?"":"【"+(lbl?lbl.textContent:"")+"】")+"搜尋名稱、款式、店家、說明";
   const list=sortItems(base.filter(i=>inReg(i)&&inCat(i)&&matchQ(i)));
   const groups=new Map();cats.forEach(c=>groups.set(c,[]));list.forEach(i=>{const c=catOf(i);if(!groups.has(c))groups.set(c,[]);groups.get(c).push(i)});
   let html="";
@@ -497,8 +521,11 @@ function render(){
 
 }
 document.querySelector(".bar").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;view[b.dataset.k]=b.dataset.v;saveView();render()});
-$("#stFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;saveView();render()};
-$("#roFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;render()};
+$("#stFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;saveView();render();closeFlt()};
+$("#roFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;render();closeFlt()};
+function closeFlt(){$("#fltPop").hidden=true;$("#fltBtn").setAttribute("aria-expanded","false")}
+$("#fltBtn").onclick=e=>{e.stopPropagation();const open=$("#fltPop").hidden;$("#fltPop").hidden=!open;$("#fltBtn").setAttribute("aria-expanded",String(open))};
+document.addEventListener("click",e=>{if(!e.target.closest(".qwrap"))closeFlt()});
 $("#q").oninput=e=>{view.q=e.target.value;render()};
 $("#list").addEventListener("click",e=>{
   if(e.target.closest("a"))return;
