@@ -471,7 +471,7 @@ function matrixHTML(arr){
 /* ---------- categories (sections, like the tabs/headers in the old sheet) and countries (filter) ---------- */
 const regOf=i=>(i.reg||"").trim()||"未填地區";
 // IP and 類型 are fixed lists; older items had one free-text cat like "TWICE 扭蛋", read once into ip/type.
-const IP0=["TWICE","寶可夢","吉伊卡哇","自嘲熊","其他"],TYPE0=["娃娃","扭蛋","泡澡球","食玩","一番賞","鐵牌","其他"];
+const IP0=["寶可夢","吉伊卡哇","自嘲熊","TWICE","DISNEY","其他"],TYPE0=["娃娃","扭蛋","泡澡球","食玩","一番賞","鐵牌","其他"];
 let IPS=IP0.slice(),TYPES=TYPE0.slice();
 /* lists = built-in names, then the user's own additions, then any name already used by an item (e.g. in a friend's shared copy); 其他 stays last */
 function refreshLists(){const mk=(base,extra,vals)=>{const o=base.filter(x=>x!=="其他");[...extra,...vals].forEach(v=>{v=String(v||"").trim();if(v&&v!=="其他"&&!o.includes(v))o.push(v)});o.push("其他");return o};
