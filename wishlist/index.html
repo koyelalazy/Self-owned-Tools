@@ -161,7 +161,7 @@ section h2 .tbtn{font-size:12px;font-weight:500;border:1px solid var(--muted);ba
 .card .meta{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card .price{font-size:13px;font-weight:500}
 .card .acts{display:flex;gap:6px;margin-top:auto;padding-top:6px}
-.card .acts button{flex:1;height:34px;border-radius:10px;border:1px solid var(--line);background:none;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:4px}
+.card .acts button{flex:1;min-height:34px;padding:4px 8px;line-height:1.3;border-radius:10px;border:1px solid var(--line);background:none;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:4px}
 .card .acts button[aria-pressed="true"]{background:var(--got);border-color:var(--got);color:#fff}
 .badge{position:absolute;top:6px;left:6px;background:var(--heart);color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
 .badge.st{left:auto;right:6px;background:var(--got)}
@@ -198,11 +198,12 @@ dialog .two>label{min-width:0}
 .step{display:flex;align-items:center;gap:6px}
 .step button{width:40px;height:40px;border-radius:10px;border:2px solid var(--got);background:var(--paper);color:var(--got);font-size:20px;font-weight:700;padding:0}
 .step b{min-width:2ch;text-align:center;font-size:22px;color:var(--ink)}
-#v-bvars .hint2{font-size:13px;font-weight:700;color:var(--got);margin-bottom:4px}
-#v-bvars .vars{gap:6px}
-#v-bvars .vchip{font-size:14px;line-height:28px;padding:0 12px;cursor:pointer;background:var(--paper);color:var(--ink);opacity:.75}
-#v-bvars .vchip[aria-pressed="true"]{background:var(--c);color:var(--fg);opacity:1}
-#v-bvars .vchip[aria-pressed="true"]::before{content:"✓ "}
+#v-bvars{display:flex;flex-direction:column;gap:6px}
+#v-bvars .hint2{font-size:13px;font-weight:700;color:var(--got)}
+#v-bvars .brow .vchip{font-size:14px;line-height:28px;padding:0 12px}
+#v-bvars .brow.zero .vchip{background:var(--paper);color:var(--muted)}
+#v-bvars .step button{width:36px;height:36px}
+#v-bvars .step button:disabled{opacity:.35}
 #v-mine{width:100%;height:52px;border-radius:14px;border:2px solid var(--line);background:none;color:var(--muted);display:grid;place-items:center;margin-top:4px}
 #v-mine svg{width:30px;height:30px}
 #v-mine[aria-pressed="true"]{background:var(--got);border-color:var(--got);color:#fff}
@@ -344,7 +345,6 @@ html:not(.ro) .ro-only{display:none!important}
     <p class="dname" id="v-name"></p>
     <dl class="kv" id="v-kv"></dl>
     <div id="v-buy" hidden>
-      <div class="brow"><span>我買了幾個</span><div class="step"><button type="button" id="v-qm" aria-label="少一個">－</button><b id="v-q">1</b><button type="button" id="v-qp" aria-label="多一個">＋</button></div></div>
       <div id="v-bvars"></div>
     </div>
     <button type="button" id="v-mine" title="我買了" aria-label="我買了" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/><path d="M9.2 14l2 2 3.6-3.8"/></svg></button>
@@ -652,18 +652,21 @@ function showView(i){
   $("#v-kv").innerHTML=(i.prio?`<dt>♥</dt><dd style="color:var(--heart);font-weight:700">必買</dd>`:i.opt?`<dt>非必要</dt><dd style="color:var(--muted);font-weight:700">為了收齊，不一定要，有看到再買就好</dd>`:"")+rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")+(link?`<dt>連結</dt><dd><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">打開商品頁 ↗</a></dd>`:"");
   const opts=hasVars(i)?(needVars(i).length?needVars(i):i.vars):[];
   const upd=()=>{const on=mine.has(i.id);$("#v-mine").setAttribute("aria-pressed",on);$("#v-mine").title=on?"我買了（再按一下取消）":"我買了";$("#viewDlg").classList.toggle("mine",on);
-    $("#v-buy").hidden=!on||!RO;if(!on)return;const b=buyOf(i);$("#v-q").textContent=b.q;
-    $("#v-bvars").innerHTML=opts.length?`<div class="hint2">買了哪些款（點一下選）</div><div class="vars">${opts.map(v=>`<button type="button" class="vchip" style="${vStyle(v)}" data-n="${esc(v.n)}" aria-pressed="${b.v.includes(v.n)}">${esc(v.n)}</button>`).join("")}</div>`:""};
-  const setBuy=f=>{const b=buyOf(i);f(b);mineInfo[i.id]=b;saveMine();render();upd()};
-  $("#v-qm").onclick=()=>setBuy(b=>{b.q=Math.max(1,b.q-1)});
-  $("#v-qp").onclick=()=>setBuy(b=>{b.q=b.q+1});
-  $("#v-bvars").onclick=e=>{const c=e.target.closest(".vchip");if(!c)return;const n=c.dataset.n;setBuy(b=>{b.v=b.v.includes(n)?b.v.filter(x=>x!==n):[...b.v,n];if(b.q<b.v.length)b.q=b.v.length})};
+    $("#v-buy").hidden=!on||!RO;if(!on)return;const b=buyOf(i);
+    const step=(k,n,min)=>`<div class="step"><button type="button" data-k="${esc(k)}" data-d="-1" aria-label="少一個"${n<=min?" disabled":""}>－</button><b>${n}</b><button type="button" data-k="${esc(k)}" data-d="1" aria-label="多一個">＋</button></div>`;
+    $("#v-bvars").innerHTML=opts.length
+      ?`<div class="hint2">每款買了幾個${+i.qty>0?`（想要 ${+i.qty} 個）`:""}</div>`+opts.map(v=>{const n=b.vc[v.n]||0;return `<div class="brow${n?"":" zero"}"><span class="vchip" style="${vStyle(v)}">${esc(v.n)}</span>${step(v.n,n,0)}</div>`}).join("")
+      :`<div class="brow"><span>我買了幾個${+i.qty>0?`（想要 ${+i.qty} 個）`:""}</span>${step("",b.q,1)}</div>`};
+  $("#v-bvars").onclick=e=>{const t=e.target.closest("button[data-d]");if(!t||t.disabled)return;const k=t.dataset.k,d=+t.dataset.d;
+    const b=buyOf(i);if(opts.length){const n=Math.max(0,(b.vc[k]||0)+d);if(n)b.vc[k]=n;else delete b.vc[k];mineInfo[i.id]={vc:b.vc}}else mineInfo[i.id]={q:Math.max(1,b.q+d)};
+    saveMine();render();upd()};
   $("#v-mine").onclick=()=>{toggleMine(i.id);upd()};upd();
 }
-/* friend's own record of what they bought: mineInfo[id]={q:count,v:[款式 names]}, kept in their browser only */
+/* friend's own record of what they bought, kept in their browser only:
+   mineInfo[id]={q:count} for items without 款式, {vc:{款式:count}} for items with 款式 (all start at 0) */
 function saveMine(){ls.set(MINE_KEY,JSON.stringify([...mine]));ls.set(MINE_KEY+"-d",JSON.stringify(mineInfo))}
-const buyOf=i=>{const d=mineInfo[i.id]||{};return {q:+d.q||Math.max(1,+i.qty||0),v:Array.isArray(d.v)?d.v:[]}};
-const buyText=i=>{const b=buyOf(i);return " ×"+b.q+(b.v.length?"（"+b.v.join("、")+"）":"")};
+const buyOf=i=>{const d=mineInfo[i.id]||{},vc={...(d.vc||{})};if(Array.isArray(d.v))d.v.forEach(n=>{vc[n]=vc[n]||1});return {q:Math.max(1,+d.q||1),vc}};
+const buyText=i=>{const b=buyOf(i);if(!hasVars(i))return " ×"+b.q;const e=Object.entries(b.vc).filter(x=>x[1]>0);return e.length?"："+e.map(([n,c])=>n+"×"+c).join("、"):""};
 function toggleMine(id){mine.has(id)?mine.delete(id):mine.add(id);saveMine();render()}
 $("#trayBtn").onclick=async()=>{
   const got=items.filter(i=>mine.has(i.id));
