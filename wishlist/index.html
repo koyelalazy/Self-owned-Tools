@@ -308,7 +308,7 @@ html:not(.ro) .ro-only{display:none!important}
     </div>
     <div class="two">
       <label>參考價格<input id="e-price" placeholder="例如：¥1,200" autocomplete="off"></label>
-      <label>數量<input id="e-qty" type="number" min="1" step="1" placeholder="1"></label>
+      <label>數量<input id="e-qty" type="number" min="0" step="1" placeholder="空白或 0 不顯示"></label>
     </div>
     <label>圖片網址（朋友看到的大圖）<input id="e-img" placeholder="https://…" autocomplete="off"></label>
     <p class="hint" style="margin-top:-6px">在官網的商品圖上按右鍵（手機長按）→「複製圖片網址」貼上。</p>
@@ -412,8 +412,8 @@ async function unpackShare(s){const kind=s[0],u8=unb64u(s.slice(1));
   const raw=kind==="z"?await pipe(u8,new DecompressionStream("deflate-raw")):u8;
   return JSON.parse(new TextDecoder().decode(raw))}
 // shared item = [name,reg,shop,price,qty,img,link,note,prio,cat,pick]
-const toShare=i=>[i.name||"",i.reg||"",i.shop||"",i.price||"",+i.qty>1?+i.qty:0,i.img||"",i.link||"",i.note||"",i.prio?1:0,ipOf(i),i.pick||"",hasVars(i)?i.vars.map(v=>[v.n,v.c||"",v.own?1:0]):0,typeOf(i),i.opt?1:0];
-const fromShare=(a,k)=>({id:"s"+k,name:a[0],reg:a[1],shop:a[2],price:a[3],qty:a[4]||1,img:a[5],link:a[6],note:a[7],prio:!!a[8],...(a.length>12?{ip:a[9],type:a[12]}:{cat:a[9]||""}),pick:a[10]||"",vars:Array.isArray(a[11])?a[11].map(v=>({n:v[0],c:v[1],own:v[2]})):undefined,opt:a[13]?1:0,st:"want",at:k});
+const toShare=i=>[i.name||"",i.reg||"",i.shop||"",i.price||"",+i.qty>0?+i.qty:0,i.img||"",i.link||"",i.note||"",i.prio?1:0,ipOf(i),i.pick||"",hasVars(i)?i.vars.map(v=>[v.n,v.c||"",v.own?1:0]):0,typeOf(i),i.opt?1:0];
+const fromShare=(a,k)=>({id:"s"+k,name:a[0],reg:a[1],shop:a[2],price:a[3],qty:+a[4]||0,img:a[5],link:a[6],note:a[7],prio:!!a[8],...(a.length>12?{ip:a[9],type:a[12]}:{cat:a[9]||""}),pick:a[10]||"",vars:Array.isArray(a[11])?a[11].map(v=>({n:v[0],c:v[1],own:v[2]})):undefined,opt:a[13]?1:0,st:"want",at:k});
 
 let shared=null,RO=false,mine=new Set(),MINE_KEY="";
 const m=/#w=([A-Za-z0-9_-]+)/.exec(location.hash);
@@ -487,7 +487,7 @@ function cardHTML(i){
       ${RO?"":`<div class="mvbtns"><button type="button" class="b-up" title="往前移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button><button type="button" class="b-down" title="往後移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button></div>`}</div>
     <div class="pic">${img?`<img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'🎁'}))">`:`<span class="ph">🎁</span>`}
       ${!RO&&i.st!=="want"?`<span class="badge st ${i.st}">${i.st==="got"?"✓ 已入手":"不要了"}</span>`:""}
-      <span class="badge qty" title="要買的數量">×${+i.qty||1}</span></div>
+      ${+i.qty>0?`<span class="badge qty" title="要買的數量">×${+i.qty}</span>`:""}</div>
     <div class="body">${varsHTML(i)}${sub?`<div class="meta">${sub}</div>`:""}${i.note?`<div class="nt">${esc(i.note)}</div>`:""}${RO?`<div class="acts"><button type="button" class="b-mine" aria-pressed="${isMine}">${isMine?"✓ 我買了":"我買了"}</button></div>`:""}</div></div>`;
 }
 
@@ -588,7 +588,7 @@ function openEdit(it){
   editing=it||null;const i=it||{st:"want",ip:view.ip!=="all"?view.ip:"",type:view.type!=="all"?view.type:"",reg:view.reg!=="all"&&view.reg!=="未填地區"?view.reg:(ls.get("wishlist-lastreg")||"")};
   $("#e-h").textContent=it?"編輯":"新增想要的東西";
   $("#e-name").value=i.name||"";$("#e-pick").value=i.pick||"";$("#e-ip").value=IPS.includes(i.ip)?i.ip:(it?"其他":"");$("#e-type").value=TYPES.includes(i.type)?i.type:(it?"其他":"");$("#e-reg").value=i.reg||"";$("#e-shop").value=i.shop||"";$("#e-price").value=i.price||"";
-  $("#e-qty").value=+i.qty||1;$("#e-img").value=i.img||"";$("#e-link").value=i.link||"";$("#e-note").value=i.note||"";$("#e-memo").value=i.memo||"";
+  $("#e-qty").value=+i.qty>0?+i.qty:"";$("#e-img").value=i.img||"";$("#e-link").value=i.link||"";$("#e-note").value=i.note||"";$("#e-memo").value=i.memo||"";
   editVars=(i.vars||[]).map(v=>({...v}));drawVars();$("#e-vadd").value="";$("#e-st").value=i.st||"want";$("#e-lv").value=i.prio?"2":i.opt?"0":"1";$("#e-by").value=i.by||"";$("#e-by-l").hidden=$("#e-st").value!=="got";
   $("#e-del").hidden=!it;showPic($("#e-pic"),i.img);$("#editDlg").showModal();if(!it)$("#e-name").focus();
 }
@@ -598,7 +598,7 @@ $("#e-st").onchange=()=>{$("#e-by-l").hidden=$("#e-st").value!=="got"};
 $("#e-img").oninput=()=>showPic($("#e-pic"),$("#e-img").value.trim());
 $("#e-save").onclick=()=>{
   const name=$("#e-name").value.trim();if(!name){toast("請填名稱");$("#e-name").focus();return}
-  const v={name,pick:$("#e-pick").value.trim(),ip:$("#e-ip").value||"其他",type:$("#e-type").value||"其他",reg:$("#e-reg").value.trim(),shop:$("#e-shop").value.trim(),price:$("#e-price").value.trim(),qty:Math.max(1,parseInt($("#e-qty").value)||1),
+  const v={name,pick:$("#e-pick").value.trim(),ip:$("#e-ip").value||"其他",type:$("#e-type").value||"其他",reg:$("#e-reg").value.trim(),shop:$("#e-shop").value.trim(),price:$("#e-price").value.trim(),qty:Math.max(0,parseInt($("#e-qty").value)||0),
     img:$("#e-img").value.trim(),link:$("#e-link").value.trim(),note:$("#e-note").value.trim(),memo:$("#e-memo").value.trim(),prio:$("#e-lv").value==="2",opt:$("#e-lv").value==="0"?1:0,st:$("#e-st").value,by:$("#e-by").value.trim(),vars:editVars.map(v=>({n:v.n,c:v.c,own:v.own?1:0}))};
   if(!v.vars.length)delete v.vars;
   if(v.st!=="got")v.by=editing?.st==="got"?"":v.by;
@@ -634,7 +634,7 @@ function showView(i){
   showPic($("#v-pic"),i.img);$("#v-name").innerHTML=esc(i.name)+(i.pick?` <span style="color:#d4252b">(${esc(i.pick)})</span>`:"");
   const link=safeUrl(i.link);
   const need=needVars(i).map(v=>v.n).join("、");
-  const rows=[["還缺",need],["IP",ipOf(i)],["類型",typeOf(i)],["地區",i.reg],["哪裡買",i.shop],["參考價格",i.price],["數量",(+i.qty||1)+" 個"],["說明",i.note]].filter(r=>r[1]);
+  const rows=[["還缺",need],["IP",ipOf(i)],["類型",typeOf(i)],["地區",i.reg],["哪裡買",i.shop],["參考價格",i.price],["數量",+i.qty>0?i.qty+" 個":""],["說明",i.note]].filter(r=>r[1]);
   $("#v-kv").innerHTML=(i.prio?`<dt>♥</dt><dd style="color:var(--heart);font-weight:700">必買</dd>`:i.opt?`<dt>非必要</dt><dd style="color:var(--muted);font-weight:700">為了收齊，不一定要，有看到再買就好</dd>`:"")+rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")+(link?`<dt>連結</dt><dd><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">打開商品頁 ↗</a></dd>`:"");
   const upd=()=>{const on=mine.has(i.id);$("#v-mine").setAttribute("aria-pressed",on);$("#v-mine").title=on?"我買了（再按一下取消）":"我買了";$("#viewDlg").classList.toggle("mine",on)};
   $("#v-mine").onclick=()=>{toggleMine(i.id);upd()};upd();
@@ -642,7 +642,7 @@ function showView(i){
 function toggleMine(id){mine.has(id)?mine.delete(id):mine.add(id);ls.set(MINE_KEY,JSON.stringify([...mine]));render()}
 $("#trayBtn").onclick=async()=>{
   const got=items.filter(i=>mine.has(i.id));
-  const text=`我幫你買了 ${got.length} 項：\n`+got.map(i=>"・"+i.name+(i.pick?"（"+i.pick+"）":"")+(needVars(i).length?"（缺："+needVars(i).map(v=>v.n).join("、")+"）":"")+(" ×"+(+i.qty||1))).join("\n");
+  const text=`我幫你買了 ${got.length} 項：\n`+got.map(i=>"・"+i.name+(i.pick?"（"+i.pick+"）":"")+(needVars(i).length?"（缺："+needVars(i).map(v=>v.n).join("、")+"）":"")+(+i.qty>0?" ×"+i.qty:"")).join("\n");
   if(navigator.share){try{await navigator.share({text});return}catch(e){if(e.name==="AbortError")return}}
   try{await navigator.clipboard.writeText(text);toast("已複製，貼到聊天室給對方")}catch(e){prompt("複製這段文字傳給對方",text)}
 };
@@ -657,7 +657,7 @@ let shareSeq=0;
 const GIST_DESC="代購願望清單分享 (wishlist share)",GIST_FILE="wishlist-share.json",GIST_KEY="wishlist-gist",GIST_HASH="wishlist-gist-hash",GIST_T="wishlist-gist-t";
 const pubItem=i=>{const o={id:i.id,name:i.name||"",ip:ipOf(i),type:typeOf(i),at:i.at||0};
   for(const k of ["pick","reg","shop","price","img","link","note"])if(i[k])o[k]=i[k];
-  if(+i.qty>1)o.qty=+i.qty;if(i.prio)o.prio=1;else if(i.opt)o.opt=1;if(hasVars(i))o.vars=i.vars.map(v=>({n:v.n,c:v.c,own:v.own?1:0}));return o};
+  if(+i.qty>0)o.qty=+i.qty;if(i.prio)o.prio=1;else if(i.opt)o.opt=1;if(hasVars(i))o.vars=i.vars.map(v=>({n:v.n,c:v.c,own:v.own?1:0}));return o};
 const gistPayload=()=>{const me=$("#sh-name").value.trim(),msg=$("#sh-msg").value.trim();
   return {v:2,n:me,m:msg,i:sortItems(items.filter(i=>i.st==="want"&&!allHave(i))).map(pubItem)}};
 async function ghApi(path,method="GET",body){
@@ -860,7 +860,7 @@ $("#s-off").onclick=()=>{
     if(GID){$("#roBanner").textContent="載入中…";try{shared=await loadGist(GID)}catch(e){shared=null;why=e.message+"。"}}
     else{try{shared=await unpackShare(m[1])}catch(e){shared=null}}
     if(!shared||!Array.isArray(shared.i)){$("#roBanner").textContent=why;$("#list").innerHTML="";return}
-    if(shared.v===2){items=shared.i.map(o=>({...o,qty:o.qty||1,st:"want"}));
+    if(shared.v===2){items=shared.i.map(o=>({...o,qty:+o.qty||0,st:"want"}));
       const rs=(qs.get("r")||"").split(",").filter(Boolean);if(rs.length)items=items.filter(i=>rs.includes(regOf(i)))}
     else items=shared.i.map(fromShare);
     MINE_KEY=GID?"wishlist-mine-g-"+GID:"wishlist-mine-"+shared.t;try{mine=new Set(JSON.parse(ls.get(MINE_KEY)||"[]"))}catch(e){}
