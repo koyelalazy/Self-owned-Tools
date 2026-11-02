@@ -335,6 +335,7 @@ html:not(.ro) .ro-only{display:none!important}
       <div class="vadd" style="margin-top:6px"><input id="e-vadd" placeholder="加一款，例如：皮卡丘" autocomplete="off"><button type="button" class="btn" id="e-vaddb">加</button><button type="button" class="btn" id="e-twice">套用 TWICE 9人</button></div></div>
     <div class="acts2">
       <button type="button" class="btn danger" id="e-del" hidden>刪除</button>
+      <button type="button" class="btn" id="e-copy" hidden title="存好目前的修改，再複製一份成新的商品">複製</button>
       <button type="button" class="btn" data-close>取消</button>
       <button type="button" class="btn primary" id="e-save">儲存</button>
     </div>
@@ -621,7 +622,7 @@ function openEdit(it){
   fillCatSel();$("#e-name").value=i.name||"";$("#e-pick").value=i.pick||"";$("#e-ip").value=IPS.includes(i.ip)?i.ip:(it?"其他":"");$("#e-type").value=TYPES.includes(i.type)?i.type:(it?"其他":"");$("#e-reg").value=i.reg||"";$("#e-shop").value=i.shop||"";$("#e-price").value=i.price||"";
   $("#e-qty").value=+i.qty>0?+i.qty:"";$("#e-img").value=i.img||"";$("#e-link").value=i.link||"";$("#e-note").value=i.note||"";$("#e-memo").value=i.memo||"";
   editVars=(i.vars||[]).map(v=>({...v}));drawVars();$("#e-vadd").value="";$("#e-st").value=i.st||"want";$("#e-lv").value=i.prio?"2":i.opt?"0":"1";$("#e-by").value=i.by||"";$("#e-by-l").hidden=$("#e-st").value!=="got";
-  $("#e-del").hidden=!it;showPic($("#e-pic"),i.img);$("#editDlg").showModal();if(!it)$("#e-name").focus();
+  $("#e-del").hidden=$("#e-copy").hidden=!it;showPic($("#e-pic"),i.img);$("#editDlg").showModal();if(!it)$("#e-name").focus();
 }
 function fillCatSel(){refreshLists();
   for(const [id,arr,lbl] of [["#e-ip",IPS,"IP"],["#e-type",TYPES,"類型"]]){const el=$(id),cur=el.value;
@@ -646,6 +647,11 @@ $("#e-save").onclick=()=>{
   if(v.reg)ls.set("wishlist-lastreg",v.reg);
   persist();render();$("#editDlg").close();toast(editing?"已儲存":"已新增");
 };
+/* 複製: save this item first, then add a copy right after it and open the copy */
+$("#e-copy").onclick=()=>{const src=editing;if(!src)return;$("#e-save").onclick();if($("#editDlg").open)return;
+  const nx=sortItems(items).find(i=>(i.at||0)>(src.at||0)),at=nx?((src.at||0)+(nx.at||0))/2:Date.now();
+  const c={...JSON.parse(JSON.stringify(src)),id:uid(),at,name:(src.name||"")+"（複製）"};
+  items.push(c);persist();render();openEdit(c);toast("已複製，可以直接改")};
 $("#e-del").onclick=()=>{if(!editing||!confirm(`刪除「${editing.name}」？`))return;items=items.filter(i=>i!==editing);persist();render();$("#editDlg").close();toast("已刪除")};
 $("#fab").onclick=()=>openEdit();
 // move within the section as it is shown now (same IP・類型 and the current status filter)
