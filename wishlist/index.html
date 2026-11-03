@@ -248,6 +248,15 @@ dialog .two>label{min-width:0}
 .ghbox{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px}
 .ghbox:empty{display:none}
 .ghbox .btn{align-self:flex-start}
+#sh-upd{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+#sh-upd .t{flex:1;min-width:0}
+#sh-upd .t b{color:#d06a2c}
+#sh-upd .t .warn{display:block}
+#gistRe{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer;position:relative}
+#gistRe.stale{background:var(--accent);border-color:var(--accent);color:#fff}
+#gistRe svg{width:20px;height:20px}
+#gistRe.busy svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 #shareQr svg{width:min(260px,70vw);height:auto;display:block;margin:0 auto;background:#fff;border-radius:8px}
 #s-qr svg{width:220px;height:220px;display:block;margin:0 auto;background:#fff}
 #s-cam{width:100%;border-radius:12px}
@@ -387,9 +396,9 @@ html:not(.ro) .ro-only{display:none!important}
           <label class="inline" id="sh-ckrow" hidden><input type="checkbox" id="sh-ck"> 吉伊卡哇地區限定<small>另開一頁</small></label>
         </div>
       </details></div>
-    <p class="hint" id="sh-count"></p>
     <div id="sh-gist" class="ghbox"></div>
     <div id="shareQr"></div>
+    <div id="sh-upd" hidden></div>
     <p class="warn" id="sh-long" hidden></p>
     <input id="shareLink" readonly>
     <div class="acts2">
@@ -769,12 +778,16 @@ const shortLink=id=>{const all=regOrder(items.filter(i=>i.st==="want"&&!allHave(
   return SITE_URL+"?g="+id+(part?"&r="+encodeURIComponent([...shareRegs].join(",")):"")};
 let gistBusy=false,gistNote="";
 function drawGist(){
-  const box=$("#sh-gist"),id=ls.get(GIST_KEY);
+  const box=$("#sh-gist"),id=ls.get(GIST_KEY);$("#sh-upd").hidden=true;
   if(!syncCfg){box.innerHTML=`<span>想要短連結的話，先到「⋯ → 雲端設定」設定 GitHub。現在先用下面的長連結。</span>`;return false}
   if(gistNote==="nogist"){box.innerHTML=`<span>⚠ 金鑰還沒有 Gist 權限，所以先用下面的長連結。<br>到 GitHub → Settings → Developer settings → Fine-grained tokens，編輯這把金鑰，在 Account permissions 把 <b>Gists</b> 設成 <b>Read and write</b> 存檔，再回來按一次。</span><button type="button" class="btn" id="gistGo">再試一次</button>`;return false}
   if(!id){box.innerHTML=`<span>建立固定的短連結：清單會存在你 GitHub 帳號的私密 Gist（不公開列出，只有拿到連結的人看得到）。之後清單改了按「更新分享內容」就好，連結不用重傳。</span><button type="button" class="btn primary" id="gistGo">${gistBusy?"建立中…":"建立短連結"}</button>`+(gistNote?`<span class="warn">${esc(gistNote)}</span>`:"");return false}
+  // the short link exists: no box, just the last update time under the QR code and a refresh button
+  box.innerHTML="";
   const t=+ls.get(GIST_T)||0,stale=ls.get(GIST_HASH)!==JSON.stringify(gistPayload());
-  box.innerHTML=`<span>${stale?`<b style="color:#b5531c">清單有改過，朋友看到的還是 ${t?new Date(t).toLocaleString("zh-TW",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"上次"} 的內容。</b>`:`✓ 朋友看到的是最新的清單${t?"（"+new Date(t).toLocaleString("zh-TW",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})+" 更新）":""}。`}</span><button type="button" class="btn${stale?" primary":""}" id="gistGo">${gistBusy?"更新中…":"更新分享內容"}</button>`+(gistNote?`<span class="warn">${esc(gistNote)}</span>`:"");
+  const when=t?new Date(t).toLocaleString("zh-TW",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
+  const up=$("#sh-upd");up.hidden=false;
+  up.innerHTML=`<span class="t">最後更新：${when}${stale?"　<b>有新修改</b>":""}${gistNote?`<span class="warn">${esc(gistNote)}</span>`:""}</span><button type="button" id="gistRe" class="${stale?"stale":""}${gistBusy?" busy":""}" title="更新分享內容" aria-label="更新分享內容"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>`;
   return true;
 }
 async function pushGist(){
@@ -790,11 +803,11 @@ async function pushGist(){
   finally{gistBusy=false;updateShare()}
 }
 $("#sh-gist").addEventListener("click",e=>{if(e.target.id==="gistGo")pushGist()});
+$("#sh-upd").addEventListener("click",e=>{if(e.target.closest("#gistRe"))pushGist()});
 async function updateShare(){
   const seq=++shareSeq,list=shareItems();
   const me=$("#sh-name").value.trim(),msg=$("#sh-msg").value.trim();
   ls.set(ME_KEY,JSON.stringify({name:me,msg,ck:$("#sh-ck").checked}));
-  $("#sh-count").textContent=`會分享 ${list.length} 項（只有「想要」的）`;
   let link;
   if(drawGist())link=shortLink(ls.get(GIST_KEY));
   else{const code=await packShare({v:1,n:me,m:msg,...(ckOn()?{ck:ckLink()}:{}),t:Date.now(),i:list.map(toShare)});link=SITE_URL+"#w="+code}
