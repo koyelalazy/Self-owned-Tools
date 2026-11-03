@@ -186,6 +186,16 @@ dialog label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var
 dialog label.inline{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:15px}
 dialog input,dialog select,dialog textarea{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--bg);color:var(--ink);font-size:15px;width:100%;min-width:0}
 dialog input[type=checkbox]{width:20px;height:20px;accent-color:var(--heart)}
+.shdd-wrap{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.shdd{position:relative}
+.shdd summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:8px 34px 8px 10px;background:var(--bg);color:var(--ink);font-size:15px;position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shdd summary::-webkit-details-marker{display:none}
+.shdd summary::after{content:"▾";position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.shdd[open] summary::after{content:"▴"}
+.shdd-box{margin-top:4px;border:1px solid var(--line);border-radius:10px;padding:4px 10px;background:var(--bg)}
+.shdd-box label.inline{padding:8px 0;font-size:15px}
+.shdd-box label.inline+label.inline,#sh-regs+label.inline{border-top:1px solid var(--line)}
+.shdd-box small{color:var(--muted);font-size:12px;margin-left:auto}
 dialog .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 dialog .two>label{min-width:0}
 .dpic{background:var(--img-bg);border-radius:12px;overflow:hidden}
@@ -370,11 +380,13 @@ html:not(.ro) .ro-only{display:none!important}
     <p class="hint">朋友打開連結會看到唯讀的清單（只有「想要」的東西），可以自己勾「我買了」再傳給你。私人備註和誰帶過的紀錄不會分享出去。</p>
     <label>你的名字（顯示在最上面）<input id="sh-name" placeholder="例如：小葉" autocomplete="off"></label>
     <label>想對朋友說的話（可空白）<textarea id="sh-msg" rows="2" placeholder="例如：看到再買就好，不用特地跑！錢回來馬上給你"></textarea></label>
-    <div>
-      <p class="hint" style="margin-bottom:6px">要分享哪些地區（朋友要去日本，就只選日本）</p>
-      <div class="chips" id="sh-regs" style="flex-wrap:wrap"></div>
-    </div>
-    <label class="inline" id="sh-ckrow" hidden><input type="checkbox" id="sh-ck"> 附上吉伊卡哇地區限定鐵牌清單（朋友點了會開另一頁）</label>
+    <div class="shdd-wrap"><span class="shdd-l">要分享哪些（朋友要去日本，就只勾日本）</span>
+      <details class="shdd" id="sh-dd"><summary id="sh-sum"></summary>
+        <div class="shdd-box">
+          <div id="sh-regs"></div>
+          <label class="inline" id="sh-ckrow" hidden><input type="checkbox" id="sh-ck"> 吉伊卡哇地區限定<small>另開一頁</small></label>
+        </div>
+      </details></div>
     <p class="hint" id="sh-count"></p>
     <div id="sh-gist" class="ghbox"></div>
     <div id="shareQr"></div>
@@ -801,13 +813,16 @@ $("#m-share").onclick=()=>{
   const regs=regOrder(wants);shareRegs=new Set(view.reg!=="all"&&regs.includes(view.reg)?[view.reg]:regs);
   let me={};try{me=JSON.parse(ls.get(ME_KEY)||"{}")}catch(e){}
   $("#sh-name").value=me.name||"";$("#sh-msg").value=me.msg||"";$("#sh-ckrow").hidden=!ckLink();$("#sh-ck").checked=me.ck!==false;
-  const drawRegs=()=>{$("#sh-regs").innerHTML=regs.map(r=>`<button type="button" class="chip" data-r="${esc(r)}" aria-pressed="${shareRegs.has(r)}">${esc(r)}<small>${wants.filter(i=>regOf(i)===r).length}</small></button>`).join("")};
-  $("#sh-regs").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;const r=b.dataset.r;shareRegs.has(r)?shareRegs.delete(r):shareRegs.add(r);if(!shareRegs.size)shareRegs.add(r);drawRegs();updateShare()};
+  const drawSum=()=>{const on=regs.filter(r=>shareRegs.has(r));$("#sh-sum").textContent=[...on,...(ckOn()?["吉伊卡哇地區限定"]:[])].join("、")};
+  const drawRegs=()=>{$("#sh-regs").innerHTML=regs.map(r=>`<label class="inline"><input type="checkbox" data-r="${esc(r)}"${shareRegs.has(r)?" checked":""}> ${esc(r)}<small>${wants.filter(i=>regOf(i)===r).length} 項</small></label>`).join("");drawSum()};
+  $("#sh-regs").onchange=e=>{const r=e.target.dataset.r;if(r==null)return;e.target.checked?shareRegs.add(r):shareRegs.delete(r);
+    if(!shareRegs.size){shareRegs.add(r);e.target.checked=true;toast("至少要勾一個地區")}drawSum();updateShare()};
+  $("#sh-ck").onchange=()=>{drawSum();updateShare()};$("#sh-dd").open=false;
   drawRegs();$("#shareSys").hidden=!navigator.share;gistNote="";$("#shareDlg").showModal();updateShare();
   // a gist made on another device is found by its description
   if(syncCfg&&!ls.get(GIST_KEY))findGist().then(id=>{if(id)updateShare()}).catch(e=>{if(e.message==="nogist"){gistNote="nogist";updateShare()}});
 };
-let shTimer=0;$("#sh-ck").onchange=updateShare;$("#sh-name").oninput=$("#sh-msg").oninput=()=>{clearTimeout(shTimer);shTimer=setTimeout(updateShare,300)};
+let shTimer=0;$("#sh-name").oninput=$("#sh-msg").oninput=()=>{clearTimeout(shTimer);shTimer=setTimeout(updateShare,300)};
 $("#shareCopy").onclick=async()=>{
   try{await navigator.clipboard.writeText($("#shareLink").value);toast("已複製連結")}catch(e){$("#shareLink").select();document.execCommand("copy");toast("已複製連結")}
 };
