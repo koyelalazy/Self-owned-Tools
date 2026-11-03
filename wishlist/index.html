@@ -417,7 +417,10 @@ const SITE_URL="https://koyelalazy.github.io/Self-owned-Tools/wishlist/";
 // The 鐵牌 live in the Chiikawa tracker (same site, so its data is in this browser too). Its share link is rebuilt here
 // in the same format as chiikawa/index.html shareLink(), stamped with that list's own save time so it only changes when the list does.
 const CK_URL="https://koyelalazy.github.io/Self-owned-Tools/chiikawa/";
-function ckLink(){let d;try{d=JSON.parse(localStorage.getItem("chiikawa-data")||"null")}catch(e){}
+function ckLink(){
+  // the Chiikawa page's short link (a gist it keeps current) is preferred once it has made one
+  const g=localStorage.getItem("chiikawa-gist");if(/^[0-9a-f]{20,40}$/i.test(g||""))return CK_URL+"?g="+g;
+  let d;try{d=JSON.parse(localStorage.getItem("chiikawa-data")||"null")}catch(e){}
   if(!d||!Array.isArray(d.items))return "";
   const ids=st=>d.items.filter(u=>u.st===st&&/^\d+$/.test(u.id)).map(u=>+u.id).sort((a,b)=>a-b),enc=a=>{let p=0;return a.map(n=>{const x=(n-p).toString(36);p=n;return x}).join(".")};
   const own=ids("own"),want=ids("want");if(!own.length&&!want.length)return "";
@@ -949,7 +952,7 @@ $("#s-off").onclick=()=>{
     document.title=`${who}的代購願望清單`;
     $("#title").innerHTML=`${esc(who)}的願望清單<small>${when} 更新・唯讀</small>`;
     // collapsed by default so the items come first; the friend's choice is remembered
-    $("#roBanner").innerHTML=`<details${ls.get("wishlist-help")==="open"?" open":""}><summary>謝謝你願意幫忙帶東西 🙏</summary><span class="msg">點商品看詳細和連結。買了就按「我買了」（只記在你的手機上），最後按下面的「告訴對方」把清單傳回去。標 ♥ 的是必買，標「非必要」的有看到再買就好。</span></details>${shared.m?`<span class="own">${esc(shared.m)}</span>`:""}${typeof shared.ck==="string"&&shared.ck.startsWith(CK_URL+"#share=1~")?`<a class="cklink" href="${esc(shared.ck)}" target="_blank" rel="noopener">吉伊卡哇地區限定鐵牌 <small>另一份清單</small></a>`:""}`;
+    $("#roBanner").innerHTML=`<details${ls.get("wishlist-help")==="open"?" open":""}><summary>謝謝你願意幫忙帶東西 🙏</summary><span class="msg">點商品看詳細和連結。買了就按「我買了」（只記在你的手機上），最後按下面的「告訴對方」把清單傳回去。標 ♥ 的是必買，標「非必要」的有看到再買就好。</span></details>${shared.m?`<span class="own">${esc(shared.m)}</span>`:""}${typeof shared.ck==="string"&&(shared.ck.startsWith(CK_URL+"#share=1~")||/^\?g=[0-9a-f]{20,40}$/i.test(shared.ck.slice(CK_URL.length))&&shared.ck.startsWith(CK_URL))?`<a class="cklink" href="${esc(shared.ck)}" target="_blank" rel="noopener">吉伊卡哇地區限定鐵牌 <small>另一份清單</small></a>`:""}`;
     $("#roBanner details").addEventListener("toggle",e=>ls.set("wishlist-help",e.target.open?"open":"closed"));
     view={st:"all",lv:"all",sort:"at",reg:"all",ip:"all",type:"all",q:""};
     try{Object.assign(view,JSON.parse(ls.get(VIEW_KEY+"-ro")||"{}"),{q:""})}catch(e){}

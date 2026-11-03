@@ -56,7 +56,23 @@ h1 small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
 .bar{background:var(--bg);padding:12px 0 8px;margin-top:6px;display:flex;flex-direction:column;gap:8px}
 @media (min-width:700px){.bar{position:sticky;top:0;z-index:10}}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-#q{flex:1;min-width:0;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--paper);padding:0 12px}
+.qwrap{position:relative;flex:1;min-width:0;display:flex}
+#q{flex:1;min-width:0;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--paper);padding:0 80px 0 12px}
+#fltBtn,#sortBtn{position:absolute;right:3px;top:3px;width:34px;height:34px;border-radius:9px;border:0;background:none;color:var(--muted);display:grid;place-items:center;padding:0}
+#sortBtn{right:39px}
+#fltBtn svg,#sortBtn svg{width:20px;height:20px}
+#fltBtn[aria-expanded="true"],#sortBtn[aria-expanded="true"]{background:var(--accent-soft);color:var(--accent)}
+#fltDot,#sortDot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--want);border:1.5px solid var(--paper)}
+.pop{position:absolute;right:0;top:46px;z-index:30;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:8px;min-width:190px;max-height:calc(100vh - 140px);overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.pop .fh{margin:4px 6px;font-size:12px;color:var(--muted)}
+.flist{display:flex;flex-direction:column}
+.flist button{border:0;background:none;color:inherit;text-align:left;padding:8px 10px 8px 30px;border-radius:8px;position:relative;font-size:15px}
+.flist button:hover{background:var(--accent-soft)}
+.flist button[aria-pressed="true"]{font-weight:700;color:var(--accent)}
+.flist button[aria-pressed="true"]::before{content:"✓";position:absolute;left:10px}
+.colsel{width:100%;height:36px;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);padding:0 8px;font-size:14px}
+.shown{font-size:13px;color:var(--muted);margin:10px 0 0}
+.shown b{color:var(--ink)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--paper)}
 .seg button{border:0;background:none;padding:7px 12px;font-size:14px;white-space:nowrap}
 .seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
@@ -74,6 +90,8 @@ section h2 .cnt{margin-left:auto;font-size:13px;font-weight:500;color:var(--mute
 section h2 .cnt.done{color:var(--own);font-weight:700}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 @media (max-width:420px){.grid{grid-template-columns:repeat(2,1fr);gap:8px}}
+html[data-cols] .grid{grid-template-columns:repeat(var(--cols),minmax(0,1fr))}
+html[data-cols="1"]{--cols:1}html[data-cols="2"]{--cols:2}html[data-cols="3"]{--cols:3}html[data-cols="4"]{--cols:4}html[data-cols="5"]{--cols:5}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow);position:relative}
 .card.own{border-color:var(--own);box-shadow:0 0 0 1px var(--own) inset}
 .card .pic{border:0;padding:0;background:var(--img-bg);aspect-ratio:1;display:grid;place-items:center;overflow:hidden}
@@ -175,15 +193,27 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
 
   <div class="bar">
     <div class="row">
-      <input id="q" type="search" placeholder="搜尋名稱、地點、備註" autocomplete="off">
-      <div class="seg" id="modeSeg"><button data-v="list">清單</button><button data-v="map">地圖</button></div>
-      <div class="seg" id="stFilter">
-        <button data-v="all" aria-pressed="true">全部</button><button data-v="own">已擁有</button><button data-v="want">想要</button><button data-v="none">未擁有</button>
+      <div class="qwrap">
+        <input id="q" type="search" placeholder="搜尋名稱、地點、備註" autocomplete="off">
+        <button type="button" id="sortBtn" title="排序" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg><i id="sortDot" hidden></i></button>
+        <button type="button" id="fltBtn" title="篩選和顯示" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg><i id="fltDot" hidden></i></button>
+        <div id="sortPop" class="pop" hidden>
+          <p class="fh">排序</p>
+          <div class="flist" id="sortFilter"><button data-v="loc">依地點</button><button data-v="want">想要的在前</button><button data-v="miss">還沒有的在前</button><button data-v="new">新上架的在前</button></div>
+        </div>
+        <div id="fltPop" class="pop" hidden>
+          <p class="fh">顯示哪些</p>
+          <div class="flist" id="stFilter"><button data-v="all">全部</button><button data-v="none">未擁有</button><button data-v="want">想要</button><button data-v="own">已擁有</button></div>
+          <p class="fh">每排幾個</p>
+          <select id="colSel" class="colsel"><option value="">自動</option><option value="1">每排 1 個</option><option value="2">每排 2 個</option><option value="3">每排 3 個</option><option value="4">每排 4 個</option><option value="5">每排 5 個</option></select>
+        </div>
       </div>
+      <div class="seg" id="modeSeg"><button data-v="list">清單</button><button data-v="map">地圖</button></div>
     </div>
     <div class="chips" id="catChips"></div>
     <div class="chips" id="regChips"></div>
   </div>
+  <p class="shown" id="shown"></p>
   <div id="mapBox" hidden><div id="map"></div><p class="hint" id="mapHint"></p></div>
   <main id="list"></main>
 </div>
@@ -224,7 +254,8 @@ dialog .two input,dialog .two select{width:100%;min-width:0}
 <dialog id="shareDlg">
   <form novalidate>
     <h3>分享給朋友</h3>
-    <p class="hint">讓朋友用手機相機掃 QR code，或把連結傳給他們。打開後是唯讀的清單，預設列出你還沒有的鐵牌，♡ 是你特別想要的。連結裡只有「有／想要」的紀錄，沒有金鑰。這是現在的快照，之後買到新的再傳一次新連結就好。</p>
+    <p class="hint">讓朋友用手機相機掃 QR code，或把連結傳給他們。打開後是唯讀的清單，預設列出你還沒有的鐵牌，♥ 是你特別想要的。分享出去的只有「有／想要」的紀錄，沒有金鑰。</p>
+    <p class="hint" id="shareNote"></p>
     <div id="shareQr"></div>
     <input id="shareLink" readonly>
     <div class="acts2">
@@ -295,7 +326,7 @@ const DATA_KEY="chiikawa-data",CAT_KEY="chiikawa-catalog",VIEW_KEY="chiikawa-vie
 let catalog=[];
 let user={items:[],custom:[]};
 try{const d=JSON.parse(ls.get(DATA_KEY)||"null");if(d){user.items=d.items||[];user.custom=d.custom||[]}}catch(e){}
-let view={st:"all",cat:"keyholder",reg:"all",loc:"",mode:"list",q:""};
+let view={st:"all",sort:"loc",cat:"keyholder",reg:"all",loc:"",mode:"list",q:""};
 try{Object.assign(view,JSON.parse(ls.get(VIEW_KEY)||"{}"),{q:"",loc:""})}catch(e){}
 
 /* ---------- share link: a read-only snapshot of owned/wanted ids in the URL fragment ---------- */
@@ -311,14 +342,32 @@ let shared=null;
 // The snapshot time is YYYYMMDD plus HHMM; links made before the time was added carry only the date.
 {const m=/#share=1~(\d{8})(\d{4})?~([0-9a-z.]*)~([0-9a-z.]*)/.exec(location.hash);
   if(m)shared={date:m[1].replace(/(\d{4})(\d\d)(\d\d)/,"$1-$2-$3")+(m[2]?" "+m[2].replace(/(\d\d)(\d\d)/,"$1:$2"):""),own:decIds(m[3]),want:decIds(m[4])}}
-const RO=!!shared;
+/* Short link (as in the wishlist): the owned/wanted ids live in a secret gist on the user's GitHub account.
+   Secret gists are unlisted but readable by anyone with the id, same as the long #share= link. The link ?g=<id> never
+   changes; the gist is rewritten after each sync, so friends always see the latest list. */
+const GIST_DESC="吉伊卡哇收集清單分享 (chiikawa share)",GIST_FILE="chiikawa-share.json",GIST_KEY="chiikawa-gist",GIST_HASH="chiikawa-gist-hash";
+const GID=(q=>/^[0-9a-f]{20,40}$/i.test(q)?q:"")(new URLSearchParams(location.search).get("g")||"");
+const RO=!!shared||!!GID;
+function useShared(sh){
+  shared=sh;
+  user={items:[...sh.own.map(id=>({id,st:"own"})),...sh.want.map(id=>({id,st:"want"}))],custom:[]};
+  $("#roBanner").textContent=`這是朋友的吉伊卡哇地區限定收集清單（${sh.date} 的狀態，唯讀）。現在列出還沒收集到的鐵牌，粉紅框、標 ♥ 想要 的是特別想要的。`;
+}
+async function loadGist(id){
+  const r=await fetch("https://api.github.com/gists/"+id,{cache:"no-store",headers:{Accept:"application/vnd.github+json"}});
+  if(!r.ok)throw new Error(r.status===403?"讀取次數太多，請過一陣子再開。":"找不到這份清單，請對方重新傳一次連結。");
+  const g=await r.json(),f=g.files&&g.files[GIST_FILE];if(!f)throw new Error("找不到這份清單，請對方重新傳一次連結。");
+  const d=JSON.parse(f.truncated?await (await fetch(f.raw_url)).text():f.content),t=new Date(d.t||Date.now()),z=n=>String(n).padStart(2,"0");
+  return {date:`${t.getFullYear()}-${z(t.getMonth()+1)}-${z(t.getDate())} ${z(t.getHours())}:${z(t.getMinutes())}`,own:(d.own||[]).map(String),want:(d.want||[]).map(String)};
+}
 if(RO){
-  user={items:[...shared.own.map(id=>({id,st:"own"})),...shared.want.map(id=>({id,st:"want"}))],custom:[]};
-  view={st:"none",cat:"keyholder",reg:"all",loc:"",mode:"list",q:""};
+  // a friend's own sort/filter choices are kept in their browser, apart from the owner's
+  view={st:"none",sort:"loc",cat:"keyholder",reg:"all",loc:"",mode:"list",q:""};
+  try{Object.assign(view,JSON.parse(ls.get(VIEW_KEY+"-ro")||"{}"),{q:"",loc:""})}catch(e){}
   document.documentElement.classList.add("ro");
   document.title="朋友的吉伊卡哇收集清單";
   $("#roBanner").hidden=false;
-  $("#roBanner").textContent=`這是朋友的吉伊卡哇地區限定收集清單（${shared.date} 的狀態，唯讀）。現在列出還沒收集到的鐵牌，粉紅框、標 ♥ 想要 的是特別想要的。`;
+  if(shared)useShared(shared);else $("#roBanner").textContent="載入中…";
 }
 const uid=()=>"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
@@ -352,6 +401,7 @@ function matches(it,q){
   return [it.name,it.loc,regionOf(it.loc),CATS[it.cat],it.note,it.price].some(s=>s&&String(s).toLowerCase().includes(q));
 }
 function render(){
+  if(RO&&!shared)return;  // the friend's list is still loading from the gist
   const items=allItems();
   const own=items.filter(i=>i.st==="own").length,want=items.filter(i=>i.st==="want").length;
   $("#sub").textContent=`已收集 ${own} / ${items.length}`;
@@ -359,6 +409,10 @@ function render(){
   $("#stats").innerHTML=`<span>已擁有 <b>${own}</b></span><span>想要 <b>${want}</b></span><span>未擁有 <b>${items.length-own}</b></span>`+(catUpdated?`<span>目錄更新：${esc(catUpdated)}</span>`:"");
 
   document.querySelectorAll("#stFilter button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===view.st));
+  document.querySelectorAll("#sortFilter button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===view.sort));
+  const stLbl=view.st===(RO?"none":"all")?"":$(`#stFilter button[data-v="${view.st}"]`)?.textContent||"";
+  $("#fltDot").hidden=!stLbl&&!ls.get(COLS_KEY);$("#sortDot").hidden=view.sort==="loc";
+  $("#q").placeholder=(stLbl?"【"+stLbl+"】":"")+"搜尋名稱、地點、備註";
   const byCat=Object.keys(CATS).map(k=>[k,items.filter(i=>i.cat===k)]);
   $("#catChips").innerHTML=chip("all","全部種類",items,view.cat,"cat")+byCat.filter(([,a])=>a.length).map(([k,a])=>chip(k,CATS[k],a,view.cat,"cat")).join("");
   const byReg=REG_ORDER.map(r=>[r,items.filter(i=>regionOf(i.loc)===r)]).filter(([,a])=>a.length);
@@ -372,13 +426,21 @@ function render(){
   const q=view.q.trim().toLowerCase();
   const shown=items.filter(i=>(view.st==="all"||(view.st==="none"?i.st!=="own":i.st===view.st))
     &&(view.cat==="all"||i.cat===view.cat)&&(view.reg==="all"||regionOf(i.loc)===view.reg)&&(!view.loc||i.loc===view.loc)&&matches(i,q));
+  $("#shown").innerHTML=`共 <b>${shown.length}</b> 項`;
+  const locCmp=(a,b)=>{a=a||"";b=b||"";const ra=REG_ORDER.indexOf(regionOf(a)),rb=REG_ORDER.indexOf(regionOf(b));
+    return ra-rb||(LOC_ORD[a]??9999)-(LOC_ORD[b]??9999)||a.localeCompare(b,"zh-Hant")};
+  // any sort other than 依地點 is one grid, and each card then names its place.
+  // Friends always get one grid (no place headers); under 依地點 their wanted items still come first.
+  if(view.sort!=="loc"||RO){
+    const rank=i=>view.sort==="want"||(RO&&view.sort==="loc")?(i.st==="want"?0:i.st==="own"?2:1):view.sort==="miss"?(i.st==="own"?1:0):0;
+    const flat=[...shown].sort((a,b)=>rank(a)-rank(b)||(view.sort==="new"?String(b.added||"").localeCompare(String(a.added||""))||(+b.id||0)-(+a.id||0):0)||locCmp(a.loc,b.loc));
+    $("#list").innerHTML=flat.length?`<div class="grid">${flat.map(it=>card(it,true)).join("")}</div>`:`<p class="empty">沒有符合的商品</p>`;
+    $("#locList").innerHTML=[...new Set([...REGIONS.flatMap(r=>r[1]),...items.map(i=>i.loc).filter(Boolean)])].map(l=>`<option value="${esc(l)}">`).join("");
+    return;
+  }
   const groups=new Map();
-  // friends see the wanted items first in each place
-  for(const it of RO?[...shown].sort((a,b)=>(b.st==="want")-(a.st==="want")):shown){const k=it.loc||"";if(!groups.has(k))groups.set(k,[]);groups.get(k).push(it)}
-  const keys=[...groups.keys()].sort((a,b)=>{
-    const ra=REG_ORDER.indexOf(regionOf(a)),rb=REG_ORDER.indexOf(regionOf(b));
-    return ra-rb||(LOC_ORD[a]??9999)-(LOC_ORD[b]??9999)||a.localeCompare(b,"zh-Hant");
-  });
+  for(const it of shown){const k=it.loc||"";if(!groups.has(k))groups.set(k,[]);groups.get(k).push(it)}
+  const keys=[...groups.keys()].sort(locCmp);
   const totals=new Map();for(const it of items){const k=it.loc||"";const t=totals.get(k)||[0,0];t[1]++;if(it.st==="own")t[0]++;totals.set(k,t)}
   $("#list").innerHTML=keys.length?keys.map(k=>{
     const [o,t]=totals.get(k);
@@ -391,12 +453,12 @@ function chip(v,label,arr,cur,kind){
   return `<button class="chip" data-${kind}="${esc(v)}" aria-pressed="${cur===v}">${esc(label)}<small>${o}/${arr.length}</small></button>`;
 }
 function pic(it){return it.img?`<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'🎁'}))">`:`<span class="ph">🎁</span>`}
-function card(it){
+function card(it,withLoc){
   return `<div class="card${it.st==="own"?" own":it.st==="want"?" want":""}" data-id="${esc(it.id)}">
     ${isNew(it)?`<span class="badge">新</span>`:""}${RO?(it.st==="want"?`<span class="badge want">♥ 想要</span>`:""):it.note||it.price?`<span class="badge note">✎</span>`:""}
     <button class="pic" data-open title="詳細">${pic(it)}${RO&&it.st==="own"?`<span class="stamp">✓ 已有</span>`:""}</button>
     <div class="body"><div class="nm">${esc(it.name)}</div>
-    <div class="meta">${RO?(it.st==="own"?`<span class="rost have">✓ 已經有了</span>`:(it.st==="want"?`<span class="rost need">♥ 很想要</span>`:`<span class="rost need">還沒有</span>`))+" · ":""}${esc(CATS[it.cat]||"")}${it.date&&!RO?" · "+esc(it.date):""}</div>
+    <div class="meta">${RO?(it.st==="own"?`<span class="rost have">✓ 已經有了</span>`:(it.st==="want"?`<span class="rost need">♥ 很想要</span>`:`<span class="rost need">還沒有</span>`))+" · ":""}${withLoc&&it.loc?esc(it.loc)+" · ":""}${esc(CATS[it.cat]||"")}${it.date&&!RO?" · "+esc(it.date):""}</div>
     <div class="acts"><button class="b-want" aria-pressed="${it.st==="want"}" title="想要" aria-label="想要">${it.st==="want"?"♥":"♡"}</button><button class="b-own" aria-pressed="${it.st==="own"}" title="已擁有" aria-label="已擁有">✓</button></div></div>
   </div>`;
 }
@@ -415,9 +477,17 @@ document.addEventListener("click",e=>{
   if(e.target.closest("[data-close]"))e.target.closest("dialog").close();
 });
 $("#modeSeg").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.mode=b.dataset.v;saveView();render()};
-$("#stFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;saveView();render()};
+$("#stFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.st=b.dataset.v;saveView();render();closePops()};
+$("#sortFilter").onclick=e=>{const b=e.target.closest("button");if(!b)return;view.sort=b.dataset.v;saveView();render();closePops()};
+function closePops(){for(const k of ["flt","sort"]){$("#"+k+"Pop").hidden=true;$("#"+k+"Btn").setAttribute("aria-expanded","false")}}
+for(const k of ["flt","sort"])$("#"+k+"Btn").onclick=e=>{e.stopPropagation();const open=$("#"+k+"Pop").hidden;closePops();$("#"+k+"Pop").hidden=!open;$("#"+k+"Btn").setAttribute("aria-expanded",String(open))};
+document.addEventListener("click",e=>{if(!e.target.closest(".qwrap"))closePops()});
+const COLS_KEY="chiikawa-cols";
+function applyCols(){const c=ls.get(COLS_KEY)||"";if(c)document.documentElement.dataset.cols=c;else delete document.documentElement.dataset.cols;$("#colSel").value=c}
+$("#colSel").onchange=e=>{ls.set(COLS_KEY,e.target.value||null);applyCols();render()};
+applyCols();
 let qTimer;$("#q").oninput=e=>{clearTimeout(qTimer);qTimer=setTimeout(()=>{view.q=e.target.value;render()},150)};
-function saveView(){if(RO)return;ls.set(VIEW_KEY,JSON.stringify({st:view.st,cat:view.cat,reg:view.reg,mode:view.mode}))}
+function saveView(){ls.set(RO?VIEW_KEY+"-ro":VIEW_KEY,JSON.stringify({st:view.st,sort:view.sort,cat:view.cat,reg:view.reg,mode:view.mode}))}
 
 const menu=$("#menu"),showMenu=v=>{menu.hidden=!v;$("#menuBtn").setAttribute("aria-expanded",v)};
 $("#menuBtn").onclick=e=>{e.stopPropagation();showMenu(menu.hidden)};
@@ -562,11 +632,45 @@ $("#m-crawl").onclick=()=>{
   toast("在 GitHub 按「Run workflow」，跑完約 1–2 分鐘後重新整理這頁");
   window.open("https://github.com/koyelalazy/Self-owned-Tools/actions/workflows/chiikawa-catalog.yml","_blank","noopener");
 };
-$("#m-share").onclick=async()=>{
-  const link=shareLink();
-  $("#shareLink").value=link;$("#shareSys").hidden=!navigator.share;$("#shareQr").innerHTML="";$("#shareDlg").showModal();
+const shareIds=st=>user.items.filter(u=>u.st===st&&/^\d+$/.test(u.id)).map(u=>+u.id).sort((a,b)=>a-b);
+const gistBody=()=>JSON.stringify({own:shareIds("own"),want:shareIds("want")});
+async function ghApi(path,method="GET",body){
+  const r=await fetch("https://api.github.com"+path,{method,cache:"no-store",headers:{Authorization:"Bearer "+syncCfg.token,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28",...(body?{"Content-Type":"application/json"}:{})},body:body?JSON.stringify(body):undefined});
+  if(!r.ok){const e=new Error(r.status===401?"金鑰無效或過期":r.status===403||r.status===404?"nogist":"GitHub 回應 "+r.status);e.status=r.status;throw e}
+  return r.json();
+}
+async function findGist(){
+  let id=ls.get(GIST_KEY);if(id)return id;
+  for(let page=1;page<=5;page++){const a=await ghApi(`/gists?per_page=100&page=${page}`);const g=a.find(x=>x.description===GIST_DESC&&x.files&&x.files[GIST_FILE]);
+    if(g){ls.set(GIST_KEY,g.id);return g.id}if(a.length<100)break}
+  return null;
+}
+// Writes the current ids to the gist when they changed; create:true makes the gist if there is none yet.
+async function pushGist(create){
+  const body=gistBody();
+  let id=create?await findGist():ls.get(GIST_KEY);
+  if(id&&ls.get(GIST_HASH)===body)return id;
+  if(!id&&!create)return null;
+  const files={[GIST_FILE]:{content:JSON.stringify({v:1,t:Date.now(),...JSON.parse(body)})}};
+  if(id){try{await ghApi("/gists/"+id,"PATCH",{description:GIST_DESC,files})}catch(e){if(e.status!==404)throw e;ls.set(GIST_KEY,null);id=null;if(!create)return null}}
+  if(!id){id=(await ghApi("/gists","POST",{description:GIST_DESC,public:false,files})).id;ls.set(GIST_KEY,id)}
+  ls.set(GIST_HASH,body);return id;
+}
+async function showShare(link){
+  $("#shareLink").value=link;$("#shareQr").innerHTML="";
   if(!window.qrcode)await loadScript("qrcode.min.js").catch(()=>{});
-  if(window.qrcode){const q=qrcode(0,"L");q.addData(link);q.make();$("#shareQr").innerHTML=q.createSvgTag({cellSize:4,margin:4,scalable:true})}
+  if(window.qrcode&&$("#shareLink").value===link){const q=qrcode(0,"L");q.addData(link);q.make();$("#shareQr").innerHTML=q.createSvgTag({cellSize:4,margin:4,scalable:true})}
+}
+$("#m-share").onclick=async()=>{
+  $("#shareSys").hidden=!navigator.share;$("#shareDlg").showModal();
+  const note=$("#shareNote");
+  if(!syncCfg){note.textContent="想要短網址的話，先到「⋯ → 雲端同步」設定 GitHub。現在先用長連結，這是當下的快照，之後買到新的要再傳一次。";showShare(shareLink());return}
+  note.textContent="建立短網址中…";$("#shareLink").value="";$("#shareQr").innerHTML="";
+  try{const id=await pushGist(true);note.textContent="✓ 朋友打開時看到的就是你最新的紀錄，之後不用重傳。";showShare(SETUP_URL+"?g="+id)}
+  catch(e){
+    note.innerHTML=e.message==="nogist"?"⚠ 金鑰還沒有 Gist 權限，所以先用長連結。到 GitHub → Settings → Developer settings → Fine-grained tokens，編輯這把金鑰，在 Account permissions 把 <b>Gists</b> 設成 <b>Read and write</b>，再回來開一次分享。":"⚠ 短網址建立失敗（"+esc(e.message||String(e))+"），先用長連結。";
+    showShare(shareLink());
+  }
 };
 $("#shareCopy").onclick=async()=>{
   try{await navigator.clipboard.writeText($("#shareLink").value);toast("已複製連結")}catch(e){$("#shareLink").select();document.execCommand("copy");toast("已複製連結")}
@@ -655,7 +759,9 @@ async function syncNow(){
         catch(e){if(e.message==="conflict")continue;throw e}
       }
       ls.set(BASE_KEY,JSON.stringify(next));ls.set(SHA_KEY,rsha||"");
-      lastSync=Date.now();syncErr="";setSyncUI("ok");break;
+      lastSync=Date.now();syncErr="";setSyncUI("ok");
+      pushGist(false).catch(()=>{});  // keep the friends' short link current
+      break;
     }
   }catch(e){syncErr=e.message||String(e);setSyncUI("err")}
   finally{syncBusy=false;if(syncAgain){syncAgain=false;scheduleSync(300)}}
@@ -722,6 +828,7 @@ let catUpdated="";
 function useCatalog(c){catalog=c.items||[];catUpdated=c.updated||""}
 try{const c=JSON.parse(ls.get(CAT_KEY)||"null");if(c)useCatalog(c)}catch(e){}
 $("#q").value="";render();setSyncUI("ok");
+if(GID&&!shared)loadGist(GID).then(sh=>{useShared(sh);render()}).catch(e=>{$("#roBanner").textContent=e.message;$("#list").innerHTML=""});
 fetch("catalog.json",{cache:"no-cache"}).then(r=>r.ok?r.json():Promise.reject()).then(c=>{useCatalog(c);ls.set(CAT_KEY,JSON.stringify(c));render()})
   .catch(()=>{if(!catalog.length)toast("商品目錄載入失敗")});
 if(syncCfg&&!RO)syncNow();
