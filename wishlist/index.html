@@ -43,8 +43,8 @@ h1 small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
 .iconbtn.err{border-color:#d23b3b;color:#d23b3b}
 @media (max-width:520px){.iconbtn .lbl{display:none}}
 #menu{position:absolute;right:0;top:46px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:6px;z-index:30;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
-#menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 12px;border-radius:8px}
-#menu button:hover{background:var(--accent-soft)}
+#menu button,#menu a{display:block;color:inherit;text-decoration:none;font-size:inherit;width:100%;text-align:left;border:0;background:none;padding:9px 12px;border-radius:8px}
+#menu button:hover,#menu a:hover{background:var(--accent-soft)}
 #menu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
 .menuwrap{position:relative}
 
@@ -54,6 +54,9 @@ h1 small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
 .ro-banner summary::after{content:"說明 ▾";margin-left:auto;font-size:12px;font-weight:500;color:var(--muted)}
 .ro-banner details[open] summary::after{content:"收起 ▴"}
 .ro-banner .msg{display:block;margin:4px 0 4px;white-space:pre-wrap}
+.ro-banner .cklink{display:flex;align-items:center;gap:8px;margin:6px 0 4px;padding:10px 12px;border-radius:12px;background:var(--paper);border:1px solid var(--line);color:inherit;text-decoration:none;font-weight:700}
+.ro-banner .cklink small{font-weight:400;color:var(--muted)}
+.ro-banner .cklink::after{content:"›";margin-left:auto;font-size:20px;color:var(--muted)}
 .ro-banner .own{display:block;margin:2px 0 4px;white-space:pre-wrap}
 .stats{display:flex;gap:14px;font-size:13px;color:var(--muted);flex-wrap:wrap;margin-top:10px}
 .stats b{color:var(--ink)}
@@ -254,6 +257,7 @@ html:not(.ro) .ro-only{display:none!important}
       <button class="iconbtn" id="menuBtn" title="更多" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
       <div id="menu" hidden>
         <button id="m-share">分享給朋友…</button>
+        <a href="../chiikawa/">吉伊卡哇地區限定鐵牌 ↗</a>
         <hr>
         <button id="m-sync">雲端設定…</button>
         <button id="m-export">匯出備份</button>
@@ -370,6 +374,7 @@ html:not(.ro) .ro-only{display:none!important}
       <p class="hint" style="margin-bottom:6px">要分享哪些地區（朋友要去日本，就只選日本）</p>
       <div class="chips" id="sh-regs" style="flex-wrap:wrap"></div>
     </div>
+    <label class="inline" id="sh-ckrow" hidden><input type="checkbox" id="sh-ck"> 附上吉伊卡哇地區限定鐵牌清單（朋友點了會開另一頁）</label>
     <p class="hint" id="sh-count"></p>
     <div id="sh-gist" class="ghbox"></div>
     <div id="shareQr"></div>
@@ -409,6 +414,16 @@ function toast(msg){const t=document.createElement("div");t.className="toast";t.
 const uid=()=>"w"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const safeUrl=u=>/^https?:\/\//i.test(u||"")?u:"";
 const SITE_URL="https://koyelalazy.github.io/Self-owned-Tools/wishlist/";
+// The 鐵牌 live in the Chiikawa tracker (same site, so its data is in this browser too). Its share link is rebuilt here
+// in the same format as chiikawa/index.html shareLink(), stamped with that list's own save time so it only changes when the list does.
+const CK_URL="https://koyelalazy.github.io/Self-owned-Tools/chiikawa/";
+function ckLink(){let d;try{d=JSON.parse(localStorage.getItem("chiikawa-data")||"null")}catch(e){}
+  if(!d||!Array.isArray(d.items))return "";
+  const ids=st=>d.items.filter(u=>u.st===st&&/^\d+$/.test(u.id)).map(u=>+u.id).sort((a,b)=>a-b),enc=a=>{let p=0;return a.map(n=>{const x=(n-p).toString(36);p=n;return x}).join(".")};
+  const own=ids("own"),want=ids("want");if(!own.length&&!want.length)return "";
+  const t=new Date(d.savedAt||Date.now()),z=n=>String(n).padStart(2,"0");
+  return CK_URL+"#share=1~"+t.getFullYear()+z(t.getMonth()+1)+z(t.getDate())+z(t.getHours())+z(t.getMinutes())+"~"+enc(own)+"~"+enc(want)}
+const ckOn=()=>!$("#sh-ckrow").hidden&&$("#sh-ck").checked;
 const DEFAULT_REGS=["日本","韓國","泰國","香港","新加坡","美國","歐洲"];
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>b.closest("dialog").close());
 // item and share popups also close on a tap outside the box (not the edit dialog, so typing isn't lost)
@@ -475,7 +490,7 @@ function matrixHTML(arr){
 /* ---------- categories (sections, like the tabs/headers in the old sheet) and countries (filter) ---------- */
 const regOf=i=>(i.reg||"").trim()||"未填地區";
 // IP and 類型 are fixed lists; older items had one free-text cat like "TWICE 扭蛋", read once into ip/type.
-const IP0=["寶可夢","吉伊卡哇","自嘲熊","TWICE","DISNEY","其他"],TYPE0=["娃娃","扭蛋","泡澡球","食玩","一番賞","鐵牌","其他"];
+const IP0=["寶可夢","吉伊卡哇","自嘲熊","TWICE","DISNEY","其他"],TYPE0=["娃娃","扭蛋","泡澡球","食玩","一番賞","其他"];
 let IPS=IP0.slice(),TYPES=TYPE0.slice();
 /* lists = built-in names, then the user's own additions, then any name already used by an item (e.g. in a friend's shared copy); 其他 stays last */
 function refreshLists(){const mk=(base,extra,vals)=>{const o=base.filter(x=>x!=="其他");[...extra,...vals].forEach(v=>{v=String(v||"").trim();if(v&&v!=="其他"&&!o.includes(v))o.push(v)});o.push("其他");return o};
@@ -723,7 +738,7 @@ const pubItem=i=>{const o={id:i.id,name:i.name||"",ip:ipOf(i),type:typeOf(i),at:
   for(const k of ["pick","reg","shop","price","img","link","note"])if(i[k])o[k]=i[k];
   if(+i.qty>0)o.qty=+i.qty;if(i.prio)o.prio=1;else if(i.opt)o.opt=1;if(hasVars(i))o.vars=i.vars.map(v=>({n:v.n,c:v.c,own:v.own?1:0}));return o};
 const gistPayload=()=>{const me=$("#sh-name").value.trim(),msg=$("#sh-msg").value.trim();
-  return {v:2,n:me,m:msg,i:sortItems(items.filter(i=>i.st==="want"&&!allHave(i))).map(pubItem)}};
+  return {v:2,n:me,m:msg,...(ckOn()?{ck:ckLink()}:{}),i:sortItems(items.filter(i=>i.st==="want"&&!allHave(i))).map(pubItem)}};
 async function ghApi(path,method="GET",body){
   const r=await fetch("https://api.github.com"+path,{method,cache:"no-store",headers:{Authorization:"Bearer "+syncCfg.token,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28",...(body?{"Content-Type":"application/json"}:{})},body:body?JSON.stringify(body):undefined});
   if(!r.ok){const e=new Error(r.status===401?"金鑰無效或過期":r.status===403||r.status===404?"nogist":"GitHub 回應 "+r.status);e.status=r.status;throw e}
@@ -763,11 +778,11 @@ $("#sh-gist").addEventListener("click",e=>{if(e.target.id==="gistGo")pushGist()}
 async function updateShare(){
   const seq=++shareSeq,list=shareItems();
   const me=$("#sh-name").value.trim(),msg=$("#sh-msg").value.trim();
-  ls.set(ME_KEY,JSON.stringify({name:me,msg}));
+  ls.set(ME_KEY,JSON.stringify({name:me,msg,ck:$("#sh-ck").checked}));
   $("#sh-count").textContent=`會分享 ${list.length} 項（只有「想要」的）`;
   let link;
   if(drawGist())link=shortLink(ls.get(GIST_KEY));
-  else{const code=await packShare({v:1,n:me,m:msg,t:Date.now(),i:list.map(toShare)});link=SITE_URL+"#w="+code}
+  else{const code=await packShare({v:1,n:me,m:msg,...(ckOn()?{ck:ckLink()}:{}),t:Date.now(),i:list.map(toShare)});link=SITE_URL+"#w="+code}
   if(seq!==shareSeq)return;
   $("#shareLink").value=link;
   $("#shareQr").innerHTML="";$("#sh-long").hidden=true;
@@ -782,14 +797,14 @@ $("#m-share").onclick=()=>{
   const wants=items.filter(i=>i.st==="want"&&!allHave(i));if(!wants.length){toast("還沒有「想要」的東西可以分享");return}
   const regs=regOrder(wants);shareRegs=new Set(view.reg!=="all"&&regs.includes(view.reg)?[view.reg]:regs);
   let me={};try{me=JSON.parse(ls.get(ME_KEY)||"{}")}catch(e){}
-  $("#sh-name").value=me.name||"";$("#sh-msg").value=me.msg||"";
+  $("#sh-name").value=me.name||"";$("#sh-msg").value=me.msg||"";$("#sh-ckrow").hidden=!ckLink();$("#sh-ck").checked=me.ck!==false;
   const drawRegs=()=>{$("#sh-regs").innerHTML=regs.map(r=>`<button type="button" class="chip" data-r="${esc(r)}" aria-pressed="${shareRegs.has(r)}">${esc(r)}<small>${wants.filter(i=>regOf(i)===r).length}</small></button>`).join("")};
   $("#sh-regs").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;const r=b.dataset.r;shareRegs.has(r)?shareRegs.delete(r):shareRegs.add(r);if(!shareRegs.size)shareRegs.add(r);drawRegs();updateShare()};
   drawRegs();$("#shareSys").hidden=!navigator.share;gistNote="";$("#shareDlg").showModal();updateShare();
   // a gist made on another device is found by its description
   if(syncCfg&&!ls.get(GIST_KEY))findGist().then(id=>{if(id)updateShare()}).catch(e=>{if(e.message==="nogist"){gistNote="nogist";updateShare()}});
 };
-let shTimer=0;$("#sh-name").oninput=$("#sh-msg").oninput=()=>{clearTimeout(shTimer);shTimer=setTimeout(updateShare,300)};
+let shTimer=0;$("#sh-ck").onchange=updateShare;$("#sh-name").oninput=$("#sh-msg").oninput=()=>{clearTimeout(shTimer);shTimer=setTimeout(updateShare,300)};
 $("#shareCopy").onclick=async()=>{
   try{await navigator.clipboard.writeText($("#shareLink").value);toast("已複製連結")}catch(e){$("#shareLink").select();document.execCommand("copy");toast("已複製連結")}
 };
@@ -934,7 +949,7 @@ $("#s-off").onclick=()=>{
     document.title=`${who}的代購願望清單`;
     $("#title").innerHTML=`${esc(who)}的願望清單<small>${when} 更新・唯讀</small>`;
     // collapsed by default so the items come first; the friend's choice is remembered
-    $("#roBanner").innerHTML=`<details${ls.get("wishlist-help")==="open"?" open":""}><summary>謝謝你願意幫忙帶東西 🙏</summary><span class="msg">點商品看詳細和連結。買了就按「我買了」（只記在你的手機上），最後按下面的「告訴對方」把清單傳回去。標 ♥ 的是必買，標「非必要」的有看到再買就好。</span></details>${shared.m?`<span class="own">${esc(shared.m)}</span>`:""}`;
+    $("#roBanner").innerHTML=`<details${ls.get("wishlist-help")==="open"?" open":""}><summary>謝謝你願意幫忙帶東西 🙏</summary><span class="msg">點商品看詳細和連結。買了就按「我買了」（只記在你的手機上），最後按下面的「告訴對方」把清單傳回去。標 ♥ 的是必買，標「非必要」的有看到再買就好。</span></details>${shared.m?`<span class="own">${esc(shared.m)}</span>`:""}${typeof shared.ck==="string"&&shared.ck.startsWith(CK_URL+"#share=1~")?`<a class="cklink" href="${esc(shared.ck)}" target="_blank" rel="noopener">吉伊卡哇地區限定鐵牌 <small>另一份清單</small></a>`:""}`;
     $("#roBanner details").addEventListener("toggle",e=>ls.set("wishlist-help",e.target.open?"open":"closed"));
     view={st:"all",lv:"all",sort:"at",reg:"all",ip:"all",type:"all",q:""};
     try{Object.assign(view,JSON.parse(ls.get(VIEW_KEY+"-ro")||"{}"),{q:""})}catch(e){}
