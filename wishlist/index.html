@@ -192,7 +192,7 @@ dialog input[type=checkbox]{width:20px;height:20px;accent-color:var(--heart)}
 .shdd summary::-webkit-details-marker{display:none}
 .shdd summary::after{content:"▾";position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
 .shdd[open] summary::after{content:"▴"}
-.shdd-box{margin-top:4px;border:1px solid var(--line);border-radius:10px;padding:4px 10px;background:var(--bg)}
+.shdd-box{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;border:1px solid var(--line);border-radius:12px;padding:4px 12px;background:var(--paper);box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .shdd-box label.inline{padding:8px 0;font-size:15px}
 .shdd-box label.inline+label.inline,#sh-regs+label.inline{border-top:1px solid var(--line)}
 .shdd-box small{color:var(--muted);font-size:12px;margin-left:auto}
@@ -831,6 +831,7 @@ $("#m-share").onclick=()=>{
   $("#sh-regs").onchange=e=>{const r=e.target.dataset.r;if(r==null)return;e.target.checked?shareRegs.add(r):shareRegs.delete(r);
     if(!shareRegs.size){shareRegs.add(r);e.target.checked=true;toast("至少要勾一個地區")}drawSum();updateShare()};
   $("#sh-ck").onchange=()=>{drawSum();updateShare()};$("#sh-dd").open=false;
+  $("#shareDlg").onclick=e=>{if($("#sh-dd").open&&!e.target.closest("#sh-dd"))$("#sh-dd").open=false};
   drawRegs();$("#shareSys").hidden=!navigator.share;gistNote="";$("#shareDlg").showModal();updateShare();
   // a gist made on another device is found by its description
   if(syncCfg&&!ls.get(GIST_KEY))findGist().then(id=>{if(id)updateShare()}).catch(e=>{if(e.message==="nogist"){gistNote="nogist";updateShare()}});
