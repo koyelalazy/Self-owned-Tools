@@ -131,6 +131,9 @@ html.lvsort .mvbtns{display:none}
 .mvbtns button{width:30px;height:30px;border-radius:8px;border:0;background:none;color:var(--muted);display:grid;place-items:center;padding:0}
 .mvbtns button:hover,.hbtn:hover{background:var(--paper)}
 .mvbtns svg{width:18px;height:18px}
+.mvbtns .b-grip{cursor:grab;touch-action:none}
+.card.dragging{opacity:.55;outline:2px dashed var(--accent);outline-offset:2px}
+html.dragmode,html.dragmode *{cursor:grabbing!important;user-select:none!important;-webkit-user-select:none!important}
 .card .nm{font-size:15px;font-weight:700;line-height:1.4}
 .card .pick{color:#d4252b;font-weight:700}
 .card .lnk{font-size:13px;color:#2a63c9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:underline}
@@ -556,7 +559,7 @@ function cardHTML(i){
     <div class="head">
       <div class="ti"><div class="nm">${lvTag(i)}${esc(i.name||"（沒有名稱）")}${i.pick?` <span class="pick">(${esc(i.pick)})</span>`:""}</div>
       ${link?`<a class="lnk" href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(shortUrl(link))}</a>`:""}</div>
-      ${RO?"":`<div class="mvbtns"><button type="button" class="b-up" title="往前移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button><button type="button" class="b-down" title="往後移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button></div>`}</div>
+      ${RO?"":`<div class="mvbtns"><button type="button" class="b-grip" title="按住拖曳排序" aria-label="拖曳排序"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg></button><button type="button" class="b-up" title="往前移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button><button type="button" class="b-down" title="往後移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button></div>`}</div>
     <div class="pic">${img?`<img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'🎁'}))">`:`<span class="ph">🎁</span>`}
       ${!RO&&i.st!=="want"?`<span class="badge st ${i.st}">${i.st==="got"?"✓ 已入手":"不要了"}</span>`:""}
       ${+i.qty>0?`<span class="badge qty" title="要買的數量">×${+i.qty}</span>`:""}</div>
@@ -643,9 +646,31 @@ $("#list").addEventListener("click",e=>{
   if(e.target.closest(".b-mine")){toggleMine(it.id);return}
   if(!RO&&e.target.closest(".otag")){const l=(lvOf(it)+1)%3;it.prio=l===2;if(l===0)it.opt=1;else delete it.opt;persist();render();toast("程度："+LV[l][0]);return}
   if(!RO&&e.target.closest(".hbtn")){it.prio=!it.prio;if(it.prio)delete it.opt;persist();render();toast(it.prio?"♥ 標成必買":"取消必買");return}
+  if(e.target.closest(".b-grip"))return;
   if(!RO&&e.target.closest(".b-up")){moveItem(it,-1);return}
   if(!RO&&e.target.closest(".b-down")){moveItem(it,1);return}
   RO?openView(it):openEdit(it);
+});
+/* drag a card by its grip to reorder it within its own section; the cards keep the same set of order values, reshuffled */
+$("#list").addEventListener("pointerdown",e=>{
+  const g=e.target.closest(".b-grip");if(!g||RO||e.button>0)return;
+  const card=g.closest(".card"),grid=card&&card.parentElement;if(!grid)return;
+  e.preventDefault();
+  card.classList.add("dragging");document.documentElement.classList.add("dragmode");
+  let y=e.clientY,x=e.clientX,raf=0;
+  const step=()=>{const edge=70,v=y<edge?-(edge-y)/4:y>innerHeight-edge?(y-innerHeight+edge)/4:0;if(v){scrollBy(0,v);place()}raf=requestAnimationFrame(step)};raf=requestAnimationFrame(step);
+  const place=()=>{const t=document.elementFromPoint(x,y)?.closest(".card");if(!t||t===card||t.parentElement!==grid)return;
+    // moving toward the end drops it after the card under the finger, moving back drops it before
+    const after=card.compareDocumentPosition(t)&Node.DOCUMENT_POSITION_FOLLOWING;grid.insertBefore(card,after?t.nextSibling:t)};
+  const move=ev=>{x=ev.clientX;y=ev.clientY;place()};
+  const end=()=>{cancelAnimationFrame(raf);removeEventListener("pointermove",move);removeEventListener("pointerup",end);removeEventListener("pointercancel",end);
+    card.classList.remove("dragging");document.documentElement.classList.remove("dragmode");
+    const order=[...grid.querySelectorAll(":scope>.card")].map(c=>items.find(i=>i.id===c.dataset.id)).filter(Boolean);
+    const ats=order.map(i=>i.at||0).sort((a,b)=>a-b);let changed=false;
+    order.forEach((it,k)=>{let a=ats[k];if(k&&a<=ats[k-1])a=ats[k]=ats[k-1]+1e-3;if(it.at!==a){it.at=a;changed=true}});
+    if(changed){persist();toast("已調整順序")}render()};
+  // listen on the window: moving the card in the DOM would drop a pointer capture on the grip
+  addEventListener("pointermove",move);addEventListener("pointerup",end);addEventListener("pointercancel",end);
 });
 $("#list").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList.contains("card"))e.target.click()});
 
@@ -968,6 +993,8 @@ $("#s-off").onclick=()=>{
 (async()=>{
   if(RO){
     document.documentElement.classList.add("ro");
+    // friends see the owner's own arrangement (IP・類型 sections, then the order the owner dragged) unless they pick a level sort
+    $('#sortFilter button[data-v="at"]').textContent="照對方排的順序";
     let why="這個連結壞掉了，請對方重新傳一次。";
     if(GID){$("#roBanner").textContent="載入中…";try{shared=await loadGist(GID)}catch(e){shared=null;why=e.message+"。"}}
     else{try{shared=await unpackShare(m[1])}catch(e){shared=null}}
