@@ -454,8 +454,11 @@ const ckOn=()=>!$("#sh-ckrow").hidden&&$("#sh-ck").checked;
 const DEFAULT_REGS=["日本","韓國","泰國","香港","新加坡","美國","歐洲"];
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>b.closest("dialog").close());
 // item and share popups also close on a tap outside the box (not the edit dialog, so typing isn't lost)
-["#viewDlg","#shareDlg","#editDlg"].forEach(id=>{const d=$(id);d.addEventListener("click",e=>{if(e.target!==d)return;const r=d.getBoundingClientRect();
-  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()})});
+// close on a tap outside only when the press also started outside, so dragging a text selection past the edge doesn't close it
+["#viewDlg","#shareDlg","#editDlg"].forEach(id=>{const d=$(id);let downOut=false;
+  const out=e=>{if(e.target!==d)return false;const r=d.getBoundingClientRect();return e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom};
+  d.addEventListener("pointerdown",e=>{downOut=out(e)});
+  d.addEventListener("click",e=>{if(downOut&&out(e))d.close();downOut=false})});
 
 /* ---------- data ---------- */
 // item: {id,name,pick,ip,type,reg,shop,price,qty,img,link,note,memo,prio,opt (1 = 非必要: only to complete a set, not needed),st:"want"|"got"|"drop",by,at}
