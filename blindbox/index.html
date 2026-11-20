@@ -237,6 +237,12 @@ input[type=color]{width:28px;height:24px;border:1px solid var(--line);border-rad
 .card .num{border-radius:calc(6cqw * var(--bs));bottom:calc(11cqw * var(--bs));width:calc(62cqw * var(--bs));height:calc(30cqw * var(--bs));font-size:calc(26cqw * var(--bs))}
 .chk{position:absolute;pointer-events:none;overflow:visible}
 .card .chk{right:4cqw;top:6cqw;width:calc(36cqw * var(--cs));height:calc(36cqw * var(--cs))}
+.card .xk{left:50%;top:45%;right:auto;transform:translate(-50%,-50%);width:calc(44cqw * var(--cs));height:calc(44cqw * var(--cs))}
+.num.nobg{background:transparent!important;color:var(--nc);-webkit-text-stroke:.16em #fff;paint-order:stroke fill;text-shadow:0 1px 3px rgba(0,0,0,.35)}
+.tools .dots{display:flex;align-items:center;gap:3px;padding:0 3px 0 1px}
+.tools .dots button{min-width:0;width:15px;height:15px;padding:0;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:var(--c)}
+.tools .dots button[aria-pressed="true"]{border-color:#fff;box-shadow:0 0 0 2px var(--acc);background:var(--c)}
+.setgrp{display:inline-flex;gap:4px;align-items:center}
 
 .board{position:relative;container-type:inline-size;user-select:none;touch-action:none;margin:0 auto}
 .board>img{width:100%;display:block;pointer-events:none;border-radius:2px}
@@ -618,10 +624,10 @@ const store=(()=>{
 
 const PRESETS=["#4b5168","#e9a9b2","#f3e6d3","#cfe3dc","#c9d3ea","#ffffff","#2a2a2e"];
 const RATIOS=[[0.647,"小卡 55×85"],[0.667,"2:3"],[0.714,"5:7"],[0.75,"3:4"],[1,"1:1"]];
-const newSeries=name=>({id:uid(),name:name||"新系列",mode:"grid",bg:"#4b5168",tex:true,cols:5,ratio:0.647,ratioAuto:true,badge:1,chk:1.4,numColor:"#6fa5ad",chkColor:"#ee1c3a",cards:[],board:null});
+const newSeries=name=>({id:uid(),name:name||"新系列",mode:"grid",bg:"#4b5168",tex:true,cols:5,ratio:0.647,ratioAuto:true,badge:1,chk:1.4,numColor:"#6fa5ad",chkColor:"#ee1c3a",chkColor2:"#2fb344",chkColor3:"#1c7ed6",xColor:"#3a3f4b",cards:[],board:null});
 
 let S={v:1,tab:"trade",series:[],cur:null,events:[],curEv:null,seedV:0};
-let tool="want", selId=null, settingsOpen=false;
+let tool="want", selId=null, settingsOpen=false, chkIdx=0;
 const ser=()=>S.series.find(x=>x.id===S.cur)||S.series[0];
 
 // ---------- history ----------
@@ -647,7 +653,13 @@ const CHECK_PATH="M12 50 Q23 58 35 80 Q57 39 90 12";
 // thick stroke on a soft edge tinted from the check colour, so it stands out on any card
 const EDGE_ALPHA=.6;
 const edgeTint=hex=>{const n=parseInt(hex.slice(1),16),m=v=>Math.round(v+(255-v)*.75);return`rgb(${m(n>>16)},${m((n>>8)&255)},${m(n&255)})`};
-const checkSVG=(color,cls,style)=>`<svg class="${cls}" style="${style||""}" viewBox="0 0 100 100"><path d="${CHECK_PATH}" fill="none" stroke="${edgeTint(color)}" stroke-opacity="${EDGE_ALPHA}" stroke-width="27" stroke-linecap="round" stroke-linejoin="round"/><path d="${CHECK_PATH}" fill="none" stroke="${color}" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const checkSVG=(color,cls,style,path)=>`<svg class="${cls}" style="${style||""}" viewBox="0 0 100 100"><path d="${path||CHECK_PATH}" fill="none" stroke="${edgeTint(color)}" stroke-opacity="${EDGE_ALPHA}" stroke-width="27" stroke-linecap="round" stroke-linejoin="round"/><path d="${path||CHECK_PATH}" fill="none" stroke="${color}" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+// ✕ = temporarily traded away / traded in; up to three ✓ colours, picked per mark (wc 0-2)
+const X_PATH="M20 20 L80 80 M80 20 L20 80";
+const chkCols=s=>[s.chkColor,s.chkColor2||"#2fb344",s.chkColor3||"#1c7ed6"];
+const chkCol=(s,o)=>chkCols(s)[o&&o.wc||0];
+const xCol=s=>s.xColor||"#3a3f4b";
+const numStyle=s=>s.numNone?`--nc:${s.numColor}`:`background:${s.numColor}`;
 let noiseURL=null,noiseCanvas=null;
 function noise(){
   if(noiseCanvas)return noiseCanvas;
@@ -709,6 +721,7 @@ function renderSide(){
   $("#side").innerHTML=`<h3>系列</h3>`+tree(null,0)+`<div class="sidebtns"><button class="btn sm" id="bNewSer">＋ 系列</button><button class="btn sm" id="bNewFold">＋ 分類</button></div>`;
 }
 const CHK_ICON='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg>';
+const X_ICON='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const MOVE_ICON='<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path fill="currentColor" d="M12 1.5l4 4.2h-2.6v4.9h4.9V8l4.2 4-4.2 4v-2.6h-4.9v4.9H16l-4 4.2-4-4.2h2.6v-4.9H5.7V16L1.5 12 5.7 8v2.6h4.9V5.7H8z"/></svg>';
 // the event title field is only as wide as its text, so the date/place row keeps its room
 let fitCv;function fitEvName(){const el=$("#evName");if(!el.offsetParent||matchMedia("(max-width:760px)").matches){el.style.width="";return}
@@ -718,10 +731,11 @@ function renderToolbar(){
   const s=ser();
   if(document.activeElement!==$("#stName"))$("#stName").value=s.name;
   const T=s.mode==="grid"
-    ?[["want",CHK_ICON,"想要","1"],["plus","＋1","多一張","2"],["minus","－1","少一張","3"],["select",MOVE_ICON,"選取／排序","4"]]
-    :[["want",CHK_ICON,"想要","1"],["plus","＋1","多一張","2"],["minus","－1","少一張／刪除","3"],["select",MOVE_ICON,"選取／移動","4"]];
+    ?[["want",CHK_ICON,"想要","1"],["cross",X_ICON,"暫時換出／換到","X"],["plus","＋1","多一張","2"],["minus","－1","少一張","3"],["select",MOVE_ICON,"選取／排序","4"]]
+    :[["want",CHK_ICON,"想要","1"],["cross",X_ICON,"暫時換出／換到","X"],["plus","＋1","多一張","2"],["minus","－1","少一張／刪除","3"],["select",MOVE_ICON,"選取／移動","4"]];
   if(!T.some(t=>t[0]===tool))tool="want";
-  $("#tools").innerHTML=T.map(([k,ic,l,kb])=>`<button data-tool="${k}" aria-pressed="${tool===k}" title="${l}（快速鍵 ${kb}）" aria-label="${l}">${ic}</button>`).join("");
+  const cc=chkCols(s);
+  $("#tools").innerHTML=T.map(([k,ic,l,kb])=>`<button data-tool="${k}" aria-pressed="${tool===k}" title="${l}（快速鍵 ${kb}）" aria-label="${l}"${k==="want"?` style="color:${cc[chkIdx]}"`:""}>${ic}</button>`+(k==="want"?`<span class="dots">${cc.map((c,i)=>`<button data-chk="${i}" style="--c:${c}" aria-pressed="${tool==="want"&&chkIdx===i}" title="勾勾顏色 ${i+1}（快速鍵 1 連按切換）" aria-label="勾勾顏色 ${i+1}"></button>`).join("")}</span>`:"")).join("");
   const st=seriesStat(s);
   // a card without a ✓ counts as collected
   const hasContent=s.mode==="grid"?st.n>0:!!s.board;
@@ -742,8 +756,9 @@ function renderSettings(){
     <span style="flex-basis:100%;height:0;margin-top:-10px"></span>
     <label>數字大小 <input type="range" id="stBadge" min="0.5" max="2" step="0.05" value="${s.badge}"></label>
     <label>勾勾大小 <input type="range" id="stChkSize" min="0.6" max="3" step="0.05" value="${s.chk??1.4}"></label>
-    <label>數字底色 <input type="color" id="stNum" value="${s.numColor}"></label>
-    <label>勾勾顏色 <input type="color" id="stChk" value="${s.chkColor}"></label>
+    <label>${s.numNone?"數字顏色":"數字底色"} <span class="setgrp"><input type="color" id="stNum" value="${s.numColor}"><label style="gap:3px;font-size:12px"><input type="checkbox" id="stNumNone" ${s.numNone?"checked":""}>無底色</label></span></label>
+    <label>勾勾顏色 <span class="setgrp"><input type="color" id="stChk" value="${s.chkColor}"><input type="color" id="stChk2" value="${chkCols(s)[1]}"><input type="color" id="stChk3" value="${chkCols(s)[2]}"></span></label>
+    <label>✕ 顏色 <input type="color" id="stX" value="${xCol(s)}"></label>
     ${s.mode==="grid"?`<label><input type="checkbox" id="stIdx" ${document.body.classList.contains("show-idx")?"checked":""}> 顯示編號</label>
 `:""}
     <span class="sp"></span>
@@ -765,8 +780,9 @@ function renderSheet(){
       <div class="card${c.id===selId?" sel":""}" data-id="${c.id}" draggable="${tool==="select"}" title="${esc(c.name||"#"+(i+1))}">
         ${cardFace(c)}
         <span class="idx">${esc(c.name||i+1)}</span>
-        ${c.dup>0?`<span class="num" style="background:${s.numColor}">${c.dup}</span>`:""}
-        ${c.want?checkSVG(s.chkColor,"chk"):""}
+        ${c.dup>0?`<span class="num${s.numNone?" nobg":""}" style="${numStyle(s)}">${c.dup}</span>`:""}
+        ${c.x?checkSVG(xCol(s),"chk xk","",X_PATH):""}
+        ${c.want?checkSVG(chkCol(s,c),"chk"):""}
       </div>`).join("")}</div>`;
   }else{
     const b=s.board;
@@ -780,8 +796,9 @@ function renderSheet(){
 }
 function markHTML(s,m){
   const pos=`left:${m.x*100}%;top:${m.y*100}%`;
-  if(m.t==="n")return`<span class="mark num${m.id===selId?" sel":""}" data-mid="${m.id}" style="${pos};background:${s.numColor}">${m.n}</span>`;
-  return checkSVG(s.chkColor,"mark chk"+(m.id===selId?" sel":""),pos).replace("<svg ",`<svg data-mid="${m.id}" `);
+  if(m.t==="n")return`<span class="mark num${s.numNone?" nobg":""}${m.id===selId?" sel":""}" data-mid="${m.id}" style="${pos};${numStyle(s)}">${m.n}</span>`;
+  const x=m.t==="x";
+  return checkSVG(x?xCol(s):chkCol(s,m),"mark chk"+(m.id===selId?" sel":""),pos,x?X_PATH:"").replace("<svg ",`<svg data-mid="${m.id}" `);
 }
 function renderSel(){
   const s=ser(),bar=$("#selbar");
@@ -790,7 +807,7 @@ function renderSel(){
     bar.classList.toggle("open",!!m);if(!m)return;
     bar.innerHTML=m.t==="n"
       ?`<b>數字標記</b><span class="cnt"><button class="btn sm" data-a="mdec">－</button><b>${m.n}</b><button class="btn sm" data-a="minc">＋</button></span><span class="sp"></span><button class="btn sm danger" data-a="mdel">刪除 (Del)</button>`
-      :`<b>想要標記</b><span class="sp"></span><button class="btn sm danger" data-a="mdel">刪除 (Del)</button>`;
+      :`<b>${m.t==="x"?"暫時換出／換到":"想要標記"}</b><span class="sp"></span><button class="btn sm danger" data-a="mdel">刪除 (Del)</button>`;
     return;
   }
   const i=s.cards.findIndex(c=>c.id===selId),c=s.cards[i];
@@ -798,6 +815,7 @@ function renderSel(){
   bar.innerHTML=`${c.img?`<img src="${c.img}" alt="">`:`<span class="thumb"></span>`}<input type="text" id="selName" placeholder="#${i+1} 名稱" value="${esc(c.name||"")}">
     <span class="cnt">多 <button class="btn sm" data-a="dec">－</button><b>${c.dup||0}</b><button class="btn sm" data-a="inc">＋</button></span>
     <label><input type="checkbox" data-a="want" ${c.want?"checked":""}> 想要</label>
+    <label><input type="checkbox" data-a="cross" ${c.x?"checked":""}> 暫時換出／換到</label>
     <span class="sp"></span>
     <button class="btn sm" data-a="left" title="往前">◀</button><button class="btn sm" data-a="right" title="往後">▶</button>
     <button class="btn sm" data-a="replace">換圖</button>
@@ -822,7 +840,8 @@ const askText=(t,def)=>ask(t,def,true),askOk=t=>ask(t,"",false);
 
 // ---------- card rules ----------
 function applyCard(c,t){
-  if(t==="want"){c.want=!c.want;if(c.want){c.dup=0;c.have=false}}
+  if(t==="want"){if(c.want&&(c.wc||0)!==chkIdx){c.wc=chkIdx;return}c.want=!c.want;if(c.want){c.wc=chkIdx;c.dup=0;c.have=false}}
+  else if(t==="cross"){c.x=!c.x}
   else if(t==="plus"){c.dup=(c.dup||0)+1;c.have=true;c.want=false}
   else if(t==="minus"){c.dup=Math.max(0,(c.dup||0)-1)}
   else if(t==="have"){c.have=!(c.have||c.dup>0);if(!c.have)c.dup=0;else c.want=false}
@@ -862,7 +881,7 @@ async function buildCanvas(s,opt){
     const b=s.board;if(!b)return null;
     const img=await loadImg(b.img);const c=document.createElement("canvas");c.width=b.w;c.height=b.h;const x=c.getContext("2d");
     x.drawImage(img,0,0);const u=b.w*.12*s.badge;
-    for(const m of b.marks){const cx=m.x*b.w,cy=m.y*b.h;const uc=b.w*.12*(s.chk??1.4);m.t==="n"?drawNum(x,s,cx-u*.31,cy-u*.15,u*.62,u*.3,m.n):drawCheck(x,s,cx-uc*.2,cy-uc*.2,uc*.4)}
+    for(const m of b.marks){const cx=m.x*b.w,cy=m.y*b.h;const uc=b.w*.12*(s.chk??1.4);m.t==="n"?drawNum(x,s,cx-u*.31,cy-u*.15,u*.62,u*.3,m.n):m.t==="x"?drawCheck(x,xCol(s),cx-uc*.2,cy-uc*.2,uc*.4,X_PATH):drawCheck(x,chkCol(s,m),cx-uc*.2,cy-uc*.2,uc*.4)}
     return c;
   }
   const n=s.cards.length;if(!n)return null;
@@ -886,7 +905,8 @@ async function buildCanvas(s,opt){
     x.restore();
     const bs=s.badge;
     if(cd.dup>0){const bw=W*.62*bs,bh=W*.3*bs;drawNum(x,s,ox+(W-bw)/2,oy+H-W*.11*bs-bh,bw,bh,cd.dup)}
-    if(cd.want){const z=W*.36*(s.chk??1.4);drawCheck(x,s,ox+W-W*.04-z,oy+W*.06,z)}
+    if(cd.x){const z=W*.44*(s.chk??1.4);drawCheck(x,xCol(s),ox+(W-z)/2,oy+H*.45-z/2,z,X_PATH)}
+    if(cd.want){const z=W*.36*(s.chk??1.4);drawCheck(x,chkCol(s,cd),ox+W-W*.04-z,oy+W*.06,z)}
   });
   return c;
 }
@@ -901,12 +921,14 @@ function drawBlank(x,cd,X,Y,W,H){
   lines.forEach((l,i)=>x.fillText(l,X+W/2,Y+H/2+(i-(lines.length-1)/2)*fs*1.25));x.shadowBlur=0;
 }
 function drawNum(x,s,X,Y,w,h,n){
+  const fs=Math.round(h*.86);x.font=`900 ${fs}px Arial,"Microsoft JhengHei UI",sans-serif`;x.textAlign="center";x.textBaseline="middle";
+  if(s.numNone){x.save();x.lineJoin="round";x.lineWidth=fs*.32;x.strokeStyle="#fff";x.strokeText(String(n),X+w/2,Y+h/2+h*.04);x.restore();x.fillStyle=s.numColor;x.fillText(String(n),X+w/2,Y+h/2+h*.04);return}
   x.fillStyle=s.numColor;x.beginPath();x.roundRect(X,Y,w,h,h*.2);x.fill();
-  x.fillStyle="#fff";x.font=`900 ${Math.round(h*.86)}px Arial,"Microsoft JhengHei UI",sans-serif`;x.textAlign="center";x.textBaseline="middle";x.fillText(String(n),X+w/2,Y+h/2+h*.04);
+  x.fillStyle="#fff";x.fillText(String(n),X+w/2,Y+h/2+h*.04);
 }
-function drawCheck(x,s,X,Y,z){
-  x.save();x.translate(X,Y);x.scale(z/100,z/100);x.lineCap="round";x.lineJoin="round";const P=new Path2D(CHECK_PATH);
-  x.globalAlpha=EDGE_ALPHA;x.strokeStyle=edgeTint(s.chkColor);x.lineWidth=27;x.stroke(P);x.globalAlpha=1;x.strokeStyle=s.chkColor;x.lineWidth=20;x.stroke(P);x.restore();
+function drawCheck(x,col,X,Y,z,path){
+  x.save();x.translate(X,Y);x.scale(z/100,z/100);x.lineCap="round";x.lineJoin="round";const P=new Path2D(path||CHECK_PATH);
+  x.globalAlpha=EDGE_ALPHA;x.strokeStyle=edgeTint(col);x.lineWidth=27;x.stroke(P);x.globalAlpha=1;x.strokeStyle=col;x.lineWidth=20;x.stroke(P);x.restore();
 }
 let lastCanvas=null;
 async function refreshPreview(){
@@ -924,6 +946,7 @@ function summary(s){
   const d=s.cards.map((c,i)=>c.dup>0?lab(c,i)+(c.dup>1?`×${c.dup}`:""):null).filter(Boolean);
   const w=s.cards.map((c,i)=>c.want?lab(c,i):null).filter(Boolean);
   lines.push("多："+(d.join("、")||"無"));lines.push("想要："+(w.join("、")||"無"));
+  const xs=s.cards.map((c,i)=>c.x?lab(c,i):null).filter(Boolean);if(xs.length)lines.push("暫時換出／換到："+xs.join("、"));
   return lines.join("\n");
 }
 function fillText(){$("#txt").value=$("#txtAll").checked?S.series.map(summary).join("\n\n"):summary(ser())}
@@ -991,7 +1014,12 @@ $("#side").addEventListener("drop",e=>{
 });
 $("#side").addEventListener("dblclick",async e=>{if(S.tab==="event")return;const b=e.target.closest(".ser");if(!b)return;const s=S.series.find(x=>x.id===b.dataset.id);const n=await askText("系列名稱",s.name);if(n&&n.trim())commit(()=>{s.name=n.trim()})});
 
-$("#tools").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;tool=b.dataset.tool;if(tool!=="select")selId=null;render()});
+$("#tools").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.chk){chkIdx=+b.dataset.chk;tool="want"}
+  // pressing ✓ (or key 1) again while it is on steps to the next ✓ colour
+  else if(b.dataset.tool==="want"&&tool==="want")chkIdx=(chkIdx+1)%3;
+  else tool=b.dataset.tool;
+  if(tool!=="select")selId=null;render()});
 $("#bSet").addEventListener("click",()=>{settingsOpen=!settingsOpen;renderSettings()});
 $("#bBlank").addEventListener("click",async()=>{
   const t=await askText("卡片名稱（多張用逗號或、分隔）","");if(!t)return;const s=ser();
@@ -1008,7 +1036,8 @@ $("#bUndo").addEventListener("click",undo);$("#bRedo").addEventListener("click",
 const inSet=t=>t.closest("#settings,#serCtl");
 $("#work").addEventListener("input",e=>{
   const s=ser(),t=e.target,id=t.id;if(!inSet(t))return;
-  const live={stChkSize:()=>s.chk=+t.value,stBadge:()=>s.badge=+t.value,stBg:()=>s.bg=t.value,stNum:()=>s.numColor=t.value,stChk:()=>s.chkColor=t.value};
+  const live={stChkSize:()=>s.chk=+t.value,stBadge:()=>s.badge=+t.value,stBg:()=>s.bg=t.value,stNum:()=>s.numColor=t.value,stChk:()=>s.chkColor=t.value,stChk2:()=>s.chkColor2=t.value,stChk3:()=>s.chkColor3=t.value,stX:()=>s.xColor=t.value};
+  if(live[id]&&/^stChk\d?$/.test(id)){live[id]();renderSheet();renderToolbar();save();return}
   if(live[id]){live[id]();renderSheet();save();return}
   if(id==="stName"){s.name=t.value;renderSide();save()}
 });
@@ -1017,7 +1046,8 @@ $("#work").addEventListener("change",e=>{
   if(id==="stIdx"){document.body.classList.toggle("show-idx",t.checked);return}
   if(id==="stHave"){document.body.classList.toggle("show-have",t.checked);return}
   if(id==="stFolder"){commit(()=>{s.folder=t.value||null;openPath(s.folder)});return}
-  if(["stBadge","stChkSize","stBg","stNum","stChk","stName"].includes(id)){undoStack.push(snap());return}
+  if(id==="stNumNone"){commit(()=>{s.numNone=t.checked});return}
+  if(["stBadge","stChkSize","stBg","stNum","stChk","stChk2","stChk3","stX","stName"].includes(id)){undoStack.push(snap());return}
   commit(()=>{
     if(id==="stTex")s.tex=t.checked;
     if(id==="stCols")s.cols=Math.max(1,Math.min(12,parseInt(t.value)||5));
@@ -1077,7 +1107,8 @@ $("#sheet").addEventListener("pointerup",e=>{
   if(p.moved&&m){commit(()=>{m.x=fx;m.y=fy});return}
   if(tool==="select"){selId=m?m.id:null;renderSheet();renderSel();return}
   commit(()=>{
-    if(tool==="want"){if(m&&m.t==="v")b.marks.splice(b.marks.indexOf(m),1);else b.marks.push({id:uid(),t:"v",x:fx,y:fy})}
+    if(tool==="want"){if(m&&m.t==="v"&&(m.wc||0)!==chkIdx)m.wc=chkIdx;else if(m&&m.t==="v")b.marks.splice(b.marks.indexOf(m),1);else b.marks.push({id:uid(),t:"v",x:fx,y:fy,wc:chkIdx})}
+    else if(tool==="cross"){if(m&&m.t==="x")b.marks.splice(b.marks.indexOf(m),1);else b.marks.push({id:uid(),t:"x",x:fx,y:fy})}
     else if(tool==="plus"){if(m&&m.t==="n")m.n++;else b.marks.push({id:uid(),t:"n",x:fx,y:fy,n:1})}
     else if(tool==="minus"&&m){if(m.t==="n"&&m.n>1)m.n--;else b.marks.splice(b.marks.indexOf(m),1)}
   });
@@ -1099,7 +1130,8 @@ $("#selbar").addEventListener("click",e=>{
 });
 $("#selbar").addEventListener("change",e=>{
   const a=e.target.dataset.a,s=ser(),c=s.cards.find(x=>x.id===selId);if(!c)return;
-  if(a==="want"&&e.target.checked!==!!c.want)commit(()=>applyCard(c,"want"));
+  if(a==="want"&&e.target.checked!==!!c.want)commit(()=>{if(c.want)c.want=false;else applyCard(c,"want")});
+  if(a==="cross")commit(()=>applyCard(c,"cross"));
   if(a==="have")commit(()=>applyCard(c,"have"));
   if(e.target.id==="selName")commit(()=>{c.name=e.target.value.trim()});
 });
@@ -1118,7 +1150,7 @@ document.addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&k==="z"){e.preventDefault();e.shiftKey?redo():undo();return}
   if((e.ctrlKey||e.metaKey)&&k==="y"){e.preventDefault();redo();return}
   if(S.tab==="event")return;
-  const map={"1":"want","2":"plus","3":"minus","4":"select","5":"select"};
+  const map={"1":"want","2":"plus","3":"minus","4":"select","5":"select","x":"cross"};
   if(map[k]&&!e.ctrlKey){const b=$(`#tools [data-tool="${map[k]}"]`);if(b)b.click();return}
   if((k==="delete"||k==="backspace")&&selId){const s=ser();
     if(s.mode==="board"&&s.board){commit(()=>{s.board.marks=s.board.marks.filter(m=>m.id!==selId);selId=null})}
