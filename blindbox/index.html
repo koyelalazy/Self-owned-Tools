@@ -211,11 +211,11 @@ table.lst.ed td{padding:6px 8px}
 .sp{flex:1}
 #stat{display:table;margin:0 0 10px;font-size:15px;font-weight:800;padding:4px 14px;border-radius:999px;background:#f0a83a;color:#fff;letter-spacing:.5px}#stat:empty{display:none}.tbR{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
 
-#settings{flex:none;display:none;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--paper);font-size:13px}
+#settings{flex:none;display:none;flex-wrap:wrap;gap:10px 13px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--paper);font-size:13px}
 #settings.open{display:flex}
 #settings label{display:flex;align-items:center;gap:6px}
 #settings input[type=number]{width:60px}
-#settings input[type=range]{width:90px}
+#settings input[type=range]{width:72px}
 .swatches{display:flex;gap:4px}
 .swatches button{width:20px;height:20px;border-radius:50%;border:1px solid var(--line);cursor:pointer;padding:0}
 input[type=color]{width:28px;height:24px;border:1px solid var(--line);border-radius:6px;padding:0;background:none}
@@ -237,7 +237,8 @@ input[type=color]{width:28px;height:24px;border:1px solid var(--line);border-rad
 .card .num{border-radius:calc(6cqw * var(--bs));bottom:calc(11cqw * var(--bs));width:calc(62cqw * var(--bs));height:calc(30cqw * var(--bs));font-size:calc(26cqw * var(--bs))}
 .chk{position:absolute;pointer-events:none;overflow:visible}
 .card .chk{right:4cqw;top:6cqw;width:calc(36cqw * var(--cs));height:calc(36cqw * var(--cs))}
-.card .xk{left:50%;top:45%;right:auto;transform:translate(-50%,-50%);width:calc(44cqw * var(--cs));height:calc(44cqw * var(--cs))}
+.card .xk{left:50%;top:45%;right:auto;transform:translate(-50%,-50%);width:calc(44cqw * var(--xsz));height:calc(44cqw * var(--xsz))}
+.mark.chk.xm{width:calc(var(--ux) * .4);height:calc(var(--ux) * .4)}
 .num.nobg{background:transparent!important;color:var(--nc);-webkit-text-stroke:.16em #fff;paint-order:stroke fill;text-shadow:0 1px 3px rgba(0,0,0,.35)}
 .tools .dots{display:flex;align-items:center;gap:3px;padding:0 3px 0 1px}
 .tools .dots button{min-width:0;width:15px;height:15px;padding:0;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:var(--c)}
@@ -659,6 +660,9 @@ const X_PATH="M20 20 L80 80 M80 20 L20 80";
 const chkCols=s=>[s.chkColor,s.chkColor2||"#2fb344",s.chkColor3||"#1c7ed6"];
 const chkCol=(s,o)=>chkCols(s)[o&&o.wc||0];
 const xCol=s=>s.xColor||"#3a3f4b";
+const xSz=s=>s.xs??1.4;
+// ✕ is a plain thin stroke with no light edge
+const xSVG=(s,cls,style)=>`<svg class="${cls}" style="${style||""}" viewBox="0 0 100 100"><path d="${X_PATH}" fill="none" stroke="${xCol(s)}" stroke-width="11" stroke-linecap="round"/></svg>`;
 const numStyle=s=>s.numNone?`--nc:${s.numColor}`:`background:${s.numColor}`;
 let noiseURL=null,noiseCanvas=null;
 function noise(){
@@ -758,7 +762,7 @@ function renderSettings(){
     <label>勾勾大小 <input type="range" id="stChkSize" min="0.6" max="3" step="0.05" value="${s.chk??1.4}"></label>
     <label>${s.numNone?"數字顏色":"數字底色"} <span class="setgrp"><input type="color" id="stNum" value="${s.numColor}"><label style="gap:3px;font-size:12px"><input type="checkbox" id="stNumNone" ${s.numNone?"checked":""}>無底色</label></span></label>
     <label>勾勾顏色 <span class="setgrp"><input type="color" id="stChk" value="${s.chkColor}"><input type="color" id="stChk2" value="${chkCols(s)[1]}"><input type="color" id="stChk3" value="${chkCols(s)[2]}"></span></label>
-    <label>✕ 顏色 <input type="color" id="stX" value="${xCol(s)}"></label>
+    <label title="✕ 大小／顏色">✕ 大小 <span class="setgrp"><input type="range" id="stXSize" min="0.4" max="3" step="0.05" value="${xSz(s)}"><input type="color" id="stX" value="${xCol(s)}"></span></label>
     ${s.mode==="grid"?`<label><input type="checkbox" id="stIdx" ${document.body.classList.contains("show-idx")?"checked":""}> 顯示編號</label>
 `:""}
     <span class="sp"></span>
@@ -771,7 +775,7 @@ function renderSheet(){
   const s=ser(),sh=$("#sheet");
   sh.style.background=bgCSS(s);
   sh.style.color=isLight(s.bg)?"#222":"#fff";
-  sh.style.setProperty("--bs",s.badge);sh.style.setProperty("--cs",s.chk??1.4);
+  sh.style.setProperty("--bs",s.badge);sh.style.setProperty("--cs",s.chk??1.4);sh.style.setProperty("--xsz",xSz(s));
   const lightCls=isLight(s.bg)?" light":"";
   if(s.mode==="grid"){
     sh.style.maxWidth=Math.min(1100,Math.max(420,s.cols*150))+"px";sh.style.padding="";
@@ -781,7 +785,7 @@ function renderSheet(){
         ${cardFace(c)}
         <span class="idx">${esc(c.name||i+1)}</span>
         ${c.dup>0?`<span class="num${s.numNone?" nobg":""}" style="${numStyle(s)}">${c.dup}</span>`:""}
-        ${c.x?checkSVG(xCol(s),"chk xk","",X_PATH):""}
+        ${c.x?xSVG(s,"chk xk"):""}
         ${c.want?checkSVG(chkCol(s,c),"chk"):""}
       </div>`).join("")}</div>`;
   }else{
@@ -789,7 +793,7 @@ function renderSheet(){
     if(!b){sh.style.maxWidth="640px";sh.innerHTML=`<div class="empty${lightCls}" id="emptyAdd"><b>上傳整張陣容圖</b>點這裡選圖，或拖進來、Ctrl+V 貼上<br>上傳後用 ✓ 和 ＋1 直接點在卡上標記，標記可以拖曳移動</div>`;return}
     sh.style.padding="0";sh.style.background="transparent";sh.style.boxShadow="none";
     const maxW=Math.min(b.w,1000);sh.style.maxWidth=maxW+"px";
-    sh.innerHTML=`<div class="board" id="board" style="--u:calc(12cqw * ${s.badge});--uc:calc(12cqw * ${s.chk??1.4});aspect-ratio:${b.w}/${b.h}"><img src="${b.img}" alt="">${b.marks.map(m=>markHTML(s,m)).join("")}</div>`;
+    sh.innerHTML=`<div class="board" id="board" style="--u:calc(12cqw * ${s.badge});--uc:calc(12cqw * ${s.chk??1.4});--ux:calc(12cqw * ${xSz(s)});aspect-ratio:${b.w}/${b.h}"><img src="${b.img}" alt="">${b.marks.map(m=>markHTML(s,m)).join("")}</div>`;
     return;
   }
   sh.style.boxShadow="";
@@ -798,7 +802,7 @@ function markHTML(s,m){
   const pos=`left:${m.x*100}%;top:${m.y*100}%`;
   if(m.t==="n")return`<span class="mark num${s.numNone?" nobg":""}${m.id===selId?" sel":""}" data-mid="${m.id}" style="${pos};${numStyle(s)}">${m.n}</span>`;
   const x=m.t==="x";
-  return checkSVG(x?xCol(s):chkCol(s,m),"mark chk"+(m.id===selId?" sel":""),pos,x?X_PATH:"").replace("<svg ",`<svg data-mid="${m.id}" `);
+  return(x?xSVG(s,"mark chk xm"+(m.id===selId?" sel":""),pos):checkSVG(chkCol(s,m),"mark chk"+(m.id===selId?" sel":""),pos)).replace("<svg ",`<svg data-mid="${m.id}" `);
 }
 function renderSel(){
   const s=ser(),bar=$("#selbar");
@@ -881,7 +885,7 @@ async function buildCanvas(s,opt){
     const b=s.board;if(!b)return null;
     const img=await loadImg(b.img);const c=document.createElement("canvas");c.width=b.w;c.height=b.h;const x=c.getContext("2d");
     x.drawImage(img,0,0);const u=b.w*.12*s.badge;
-    for(const m of b.marks){const cx=m.x*b.w,cy=m.y*b.h;const uc=b.w*.12*(s.chk??1.4);m.t==="n"?drawNum(x,s,cx-u*.31,cy-u*.15,u*.62,u*.3,m.n):m.t==="x"?drawCheck(x,xCol(s),cx-uc*.2,cy-uc*.2,uc*.4,X_PATH):drawCheck(x,chkCol(s,m),cx-uc*.2,cy-uc*.2,uc*.4)}
+    for(const m of b.marks){const cx=m.x*b.w,cy=m.y*b.h;const uc=b.w*.12*(s.chk??1.4),ux=b.w*.12*xSz(s);m.t==="n"?drawNum(x,s,cx-u*.31,cy-u*.15,u*.62,u*.3,m.n):m.t==="x"?drawX(x,s,cx-ux*.2,cy-ux*.2,ux*.4):drawCheck(x,chkCol(s,m),cx-uc*.2,cy-uc*.2,uc*.4)}
     return c;
   }
   const n=s.cards.length;if(!n)return null;
@@ -905,7 +909,7 @@ async function buildCanvas(s,opt){
     x.restore();
     const bs=s.badge;
     if(cd.dup>0){const bw=W*.62*bs,bh=W*.3*bs;drawNum(x,s,ox+(W-bw)/2,oy+H-W*.11*bs-bh,bw,bh,cd.dup)}
-    if(cd.x){const z=W*.44*(s.chk??1.4);drawCheck(x,xCol(s),ox+(W-z)/2,oy+H*.45-z/2,z,X_PATH)}
+    if(cd.x){const z=W*.44*xSz(s);drawX(x,s,ox+(W-z)/2,oy+H*.45-z/2,z)}
     if(cd.want){const z=W*.36*(s.chk??1.4);drawCheck(x,chkCol(s,cd),ox+W-W*.04-z,oy+W*.06,z)}
   });
   return c;
@@ -925,6 +929,9 @@ function drawNum(x,s,X,Y,w,h,n){
   if(s.numNone){x.save();x.lineJoin="round";x.lineWidth=fs*.32;x.strokeStyle="#fff";x.strokeText(String(n),X+w/2,Y+h/2+h*.04);x.restore();x.fillStyle=s.numColor;x.fillText(String(n),X+w/2,Y+h/2+h*.04);return}
   x.fillStyle=s.numColor;x.beginPath();x.roundRect(X,Y,w,h,h*.2);x.fill();
   x.fillStyle="#fff";x.fillText(String(n),X+w/2,Y+h/2+h*.04);
+}
+function drawX(x,s,X,Y,z){
+  x.save();x.translate(X,Y);x.scale(z/100,z/100);x.lineCap="round";x.strokeStyle=xCol(s);x.lineWidth=11;x.stroke(new Path2D(X_PATH));x.restore();
 }
 function drawCheck(x,col,X,Y,z,path){
   x.save();x.translate(X,Y);x.scale(z/100,z/100);x.lineCap="round";x.lineJoin="round";const P=new Path2D(path||CHECK_PATH);
@@ -1036,7 +1043,7 @@ $("#bUndo").addEventListener("click",undo);$("#bRedo").addEventListener("click",
 const inSet=t=>t.closest("#settings,#serCtl");
 $("#work").addEventListener("input",e=>{
   const s=ser(),t=e.target,id=t.id;if(!inSet(t))return;
-  const live={stChkSize:()=>s.chk=+t.value,stBadge:()=>s.badge=+t.value,stBg:()=>s.bg=t.value,stNum:()=>s.numColor=t.value,stChk:()=>s.chkColor=t.value,stChk2:()=>s.chkColor2=t.value,stChk3:()=>s.chkColor3=t.value,stX:()=>s.xColor=t.value};
+  const live={stXSize:()=>s.xs=+t.value,stChkSize:()=>s.chk=+t.value,stBadge:()=>s.badge=+t.value,stBg:()=>s.bg=t.value,stNum:()=>s.numColor=t.value,stChk:()=>s.chkColor=t.value,stChk2:()=>s.chkColor2=t.value,stChk3:()=>s.chkColor3=t.value,stX:()=>s.xColor=t.value};
   if(live[id]&&/^stChk\d?$/.test(id)){live[id]();renderSheet();renderToolbar();save();return}
   if(live[id]){live[id]();renderSheet();save();return}
   if(id==="stName"){s.name=t.value;renderSide();save()}
@@ -1047,7 +1054,7 @@ $("#work").addEventListener("change",e=>{
   if(id==="stHave"){document.body.classList.toggle("show-have",t.checked);return}
   if(id==="stFolder"){commit(()=>{s.folder=t.value||null;openPath(s.folder)});return}
   if(id==="stNumNone"){commit(()=>{s.numNone=t.checked});return}
-  if(["stBadge","stChkSize","stBg","stNum","stChk","stChk2","stChk3","stX","stName"].includes(id)){undoStack.push(snap());return}
+  if(["stBadge","stChkSize","stXSize","stBg","stNum","stChk","stChk2","stChk3","stX","stName"].includes(id)){undoStack.push(snap());return}
   commit(()=>{
     if(id==="stTex")s.tex=t.checked;
     if(id==="stCols")s.cols=Math.max(1,Math.min(12,parseInt(t.value)||5));
